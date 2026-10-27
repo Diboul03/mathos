@@ -113,6 +113,7 @@ table.tab td { border: 1px solid var(--encre2); padding: 4px 14px; text-align: c
 table.hist { width: 100%; border-collapse: collapse; font-size: 14px; }
 table.hist th, table.hist td { text-align: left; padding: 8px 6px; border-bottom: 1px solid var(--ligne); }
 table.hist th { color: var(--encre2); font-weight: 600; }
+table.hist tr.alerte td { color: var(--ko); }
 .erreur-item { border-left: 4px solid var(--ko); padding: 8px 14px; margin: 12px 0; background: var(--fond); border-radius: 0 10px 10px 0; }
 .erreur-item.juste { border-left-color: var(--ok); }
 .erreur-item .q { font-weight: 600; margin-bottom: 4px; }
@@ -1747,9 +1748,23 @@ table.hist th { color: var(--encre2); font-weight: 600; }
     notifier('erreur', attente.length ? attente.length + ' séance(s) en attente d\'envoi' : 'Drive injoignable pour le moment');
   }
 
-  function synchroniser() {
+  // Nom de l'appareil pour le journal des connexions : celui choisi par les parents, sinon une description automatique
+  function appareil() {
+    var nom = ''; try { nom = localStorage.getItem('mathos.poste') || ''; } catch (e) {}
+    if (nom) return nom;
+    var ua = navigator.userAgent;
+    var sys = /Android/.test(ua) ? 'Android' : /iPhone|iPad/.test(ua) ? 'iPhone/iPad' : /Macintosh/.test(ua) ? 'Mac' : /Windows/.test(ua) ? 'PC Windows' : 'Appareil';
+    var nav = /Edg\//.test(ua) ? 'Edge' : /Chrome\//.test(ua) ? 'Chrome' : /Firefox\//.test(ua) ? 'Firefox' : /Safari\//.test(ua) ? 'Safari' : '';
+    return sys + (nav ? ' · ' + nav : '') + ' (sans nom)';
+  }
+
+  // ouverture = noter une connexion dans le journal (au lancement, ou au retour après une longue pause)
+  var derniereOuverture = 0;
+  function synchroniser(ouverture) {
     if (!code) return Promise.resolve(false);
-    var p = attente.length ? serveur('ajouterSeances', code, JSON.stringify(attente)) : serveur('charger', code);
+    if (ouverture === true) derniereOuverture = Date.now();
+    var p = attente.length ? serveur('ajouterSeances', code, JSON.stringify(attente), appareil())
+      : serveur('charger', code, appareil(), ouverture === true);
     return p.then(recevoir, echec);
   }
 
@@ -1758,8 +1773,11 @@ table.hist th { color: var(--encre2); font-weight: 600; }
     if (document.getElementById('ecran-code')) return;
     var e = document.createElement('div');
     e.id = 'ecran-code'; e.className = 'boite-fond';
+    var nomActuel = ''; try { nomActuel = localStorage.getItem('mathos.poste') || ''; } catch (err) {}
     e.innerHTML = '<form class="boite"><h2>MathOS</h2><p>Entrez le code d\'accès pour ouvrir l\'entraînement.</p>' +
       '<input id="code-acces" inputmode="numeric" autocomplete="off" maxlength="12" placeholder="Code d\'accès">' +
+      '<p class="note" style="margin:12px 0 0">Nom de cet appareil (pour le journal des connexions) :</p>' +
+      '<input id="code-appareil" autocomplete="off" maxlength="40" placeholder="ex. Téléphone de Louise-Marie" value="' + nomActuel.replace(/"/g, '&quot;') + '">' +
       '<p class="note" id="code-msg" style="min-height:1.2em"></p><div class="ligne-btn"><button class="btn" type="submit">Entrer</button></div></form>';
     e.style.height = Math.max(document.documentElement.scrollHeight, 600) + 'px';
     document.body.appendChild(e);
@@ -1769,18 +1787,20 @@ table.hist th { color: var(--encre2); font-weight: 600; }
     e.querySelector('form').onsubmit = function (ev) {
       ev.preventDefault();
       msg.textContent = 'Vérification…';
-      serveur('verifierCode', champ.value.trim()).then(function (bon) {
+      var nom = e.querySelector('#code-appareil').value.trim();
+      try { if (nom) localStorage.setItem('mathos.poste', nom); } catch (err) {}
+      serveur('verifierCode', champ.value.trim(), appareil()).then(function (bon) {
         if (!bon) { msg.textContent = 'Code incorrect.'; champ.select(); return; }
         code = champ.value.trim(); ecrireLocal(CODE, code);
         e.remove();
-        synchroniser();
+        synchroniser(true);
       }, function () { msg.textContent = 'Connexion impossible. Vérifiez internet et réessayez.'; });
     };
   }
 
   function demarrer() {
     if (!code) { notifier('local', 'Code d\'accès à saisir'); demanderCode(); return Promise.resolve(); }
-    return synchroniser();
+    return synchroniser(true);
   }
 
   function ajouterSeance(s) {
@@ -1791,17 +1811,21 @@ table.hist th { color: var(--encre2); font-weight: 600; }
   function majReglages(r) {
     Object.assign(donnees.reglages, r, { maj: Date.now() });
     ecrireLocal(CLE, donnees);
-    return serveur('majReglages', code, JSON.stringify(donnees.reglages), codeParent).then(recevoir, echec);
+    return serveur('majReglages', code, JSON.stringify(donnees.reglages), codeParent, appareil()).then(recevoir, echec);
   }
   function reinitialiser() {
     attente = []; ecrireLocal(ATTENTE, attente);
-    return serveur('reinitialiser', code, codeParent).then(recevoir, echec);
+    return serveur('reinitialiser', code, codeParent, appareil()).then(recevoir, echec);
   }
   // Accès aux Réglages réservé aux parents (code vérifié par le programme Google)
   function verifierParent(c) {
     if (codeParent) return Promise.resolve(true);
     if (!c) return Promise.resolve(false);
-    return serveur('verifierCodeParent', code, c).then(function (bon) { if (bon) codeParent = c; return bon; });
+    return serveur('verifierCodeParent', code, c, appareil()).then(function (bon) { if (bon) codeParent = c; return bon; });
+  }
+  // Journal des connexions (lisible seulement avec le code parent)
+  function journal() {
+    return serveur('journal', code, codeParent, 300).then(function (j) { return JSON.parse(j); });
   }
   function exporter() { throw { code: 'indisponible' }; }
   function importer(fichier) {
@@ -1815,7 +1839,10 @@ table.hist th { color: var(--encre2); font-weight: 600; }
   }
 
   // revenir sur l'onglet = relire le Drive (séances faites sur un autre appareil)
-  document.addEventListener('visibilitychange', function () { if (!document.hidden) synchroniser(); });
+  // (au-delà de 30 min d'absence, le retour compte comme une nouvelle connexion dans le journal)
+  document.addEventListener('visibilitychange', function () {
+    if (!document.hidden) synchroniser(Date.now() - derniereOuverture > 30 * 60 * 1000);
+  });
 
   global.Sync = {
     web: true, google: true,
@@ -1827,7 +1854,7 @@ table.hist th { color: var(--encre2); font-weight: 600; }
     connecter: function () { return Promise.resolve(false); },
     synchroniser: synchroniser,
     ajouterSeance: ajouterSeance, majReglages: majReglages, reinitialiser: reinitialiser, exporter: exporter, importer: importer,
-    verifierParent: verifierParent,
+    verifierParent: verifierParent, journal: journal, appareil: appareil,
     surChangement: function (fn) { ecouteurs.push(fn); },
     surMiseAJour: function (fn) { surMaj = fn; }
   };
@@ -2249,7 +2276,7 @@ table.hist th { color: var(--encre2); font-weight: 600; }
     }
     var score = s.rep.filter(function (r) { return r.ok; }).length;
     var note = s.mode === 'epreuve' ? s.rep.reduce(function (t, r) { return t + (r.ok ? r.p : 0); }, 0) : undefined;
-    var enreg = { id: s.id, debut: s.debut, fin: new Date().toISOString(), duree: Math.round((Date.now() - s.t0) / 1000), poste: poste() || 'Mac',
+    var enreg = { id: s.id, debut: s.debut, fin: new Date().toISOString(), duree: Math.round((Date.now() - s.t0) / 1000), poste: poste() || (S.appareil ? S.appareil() : 'Mac'),
                   mode: s.mode, repondre: s.repondre, theme: s.theme, score: score, note: note, total: s.rep.length, rep: s.rep };
     if (!modeEssai()) S.ajouterSeance(enreg);
     bilan(enreg, s.qs);
@@ -2439,9 +2466,11 @@ table.hist th { color: var(--encre2); font-weight: 600; }
     var r = D().reglages;
     $vue.innerHTML = '<div class="carte"><h1>Réglages</h1>' +
       '<div class="form-ligne"><label>Prénom de l\'élève</label><input id="prenom" value="' + esc(r.prenom || 'Louise-Marie') + '"></div>' +
-      '<div class="form-ligne"><label>Nom de cet appareil</label><input id="poste" placeholder="ex. MacBook Papa, iMac salon" value="' + esc(poste()) + '"></div>' +
+      '<div class="form-ligne"><label>Nom de cet appareil</label><input id="poste" placeholder="ex. MacBook Papa, iMac salon" value="' + esc(poste()) + '">' +
+        (S.journal ? '<span class="note">Ce nom apparaît dans le journal des connexions.</span>' : '') + '</div>' +
       '<div class="form-ligne"><label>Date du brevet (indicative)</label><input id="date" type="date" value="' + esc(r.dateBrevet) + '"></div>' +
       '<div class="ligne-btn"><button class="btn" id="enreg">Enregistrer</button></div></div>' +
+      (S.journal ? '<div class="carte"><h2>Journal des connexions</h2><p class="note">Qui a ouvert MathOS et quand, sur quel appareil, et ce qui a été fait. Les tentatives avec un mauvais code apparaissent en rouge.</p><div id="journal" class="hist-wrap"><p class="note">Chargement…</p></div></div>' : '') +
       '<div class="carte"><h2>Tests et remise à zéro</h2>' +
       '<div class="form-ligne"><label for="essai">Mode essai sur ' + (S.web ? 'cet appareil' : 'ce Mac') + '</label><input type="checkbox" id="essai"' + (modeEssai() ? ' checked' : '') + '><span class="note">Les séances faites ici ne sont pas enregistrées (pratique pour tester l\'app).</span></div>' +
       '<p class="note">' + (S.web ? 'La remise à zéro efface toutes les séances, sur tous les appareils.' : 'La remise à zéro efface toutes les séances, sur les 3 Mac et dans le Drive (les sauvegardes des jours précédents restent dans le dossier « sauvegardes »).') + ' Le prénom et les réglages sont conservés.</p>' +
@@ -2478,12 +2507,35 @@ table.hist th { color: var(--encre2); font-weight: 600; }
         });
       });
     };
+    if (S.journal) afficherJournal(50);
     var ch = document.getElementById('choisir'); if (ch) ch.onclick = function () { S.connecter(true).then(function () { aller('reglages'); }); };
     var sn = document.getElementById('syncnow'); if (sn) sn.onclick = function () { S.synchroniser().then(function () { aller('reglages'); }); };
     if (document.getElementById('exp')) document.getElementById('exp').onclick = function () {
       Promise.resolve().then(S.exporter).catch(function (e) { if (!e || e.code !== 'declined') toast('Export impossible sur cet appareil.'); });
     };
     document.getElementById('imp').onchange = function (e) { if (e.target.files[0]) S.importer(e.target.files[0]).then(function () { toast('Progression importée et fusionnée.'); aller('reglages'); }).catch(function () { toast('Fichier illisible : choisissez un fichier progression.json.'); }); };
+  }
+
+  // Journal des connexions (version Google) : les plus récentes d'abord
+  function afficherJournal(n) {
+    S.journal().then(function (j) {
+      var el = document.getElementById('journal');
+      if (!el) return;
+      if (!j.length) { el.innerHTML = '<p class="note">Aucune connexion enregistrée pour l\'instant.</p>'; return; }
+      var jours = {};
+      el.innerHTML = '<table class="hist"><tr><th>Quand</th><th>Appareil</th><th>Quoi</th></tr>' +
+        j.slice(0, n).map(function (x) {
+          var d = new Date(x.t), alerte = /incorrect/.test(x.e);
+          var quand = d.toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' }) + ' ' + d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+          return '<tr' + (alerte ? ' class="alerte"' : '') + '><td style="white-space:nowrap">' + quand + '</td><td>' + esc(x.a) + '</td><td>' + (alerte ? '⚠️ ' : '') + esc(x.e) + '</td></tr>';
+        }).join('') + '</table>' +
+        (j.length > n ? '<div class="ligne-btn"><button class="btn sec" id="journal-plus">Afficher tout (' + j.length + ')</button></div>' : '');
+      var plus = document.getElementById('journal-plus');
+      if (plus) plus.onclick = function () { afficherJournal(j.length); };
+    }, function () {
+      var el = document.getElementById('journal');
+      if (el) el.innerHTML = '<p class="note">Journal indisponible pour le moment (connexion internet ?).</p>';
+    });
   }
 
   // Démarrage
