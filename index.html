@@ -1885,21 +1885,38 @@ table.hist tr.alerte td { color: var(--ko); }
     el.style.top = Math.max(16, Math.min(dernierY + decalage, document.documentElement.scrollHeight - 220)) + 'px';
     try { el.scrollIntoView({ block: 'nearest' }); } catch (e) {}
   }
-  function boite(html, boutons, saisie) {
+  // valider (facultatif) : appelé au clic sur un bouton de valeur vraie ; renvoie une promesse
+  // de true (fermer) ou d'un message d'erreur (la fenêtre reste ouverte et affiche le message)
+  function boite(html, boutons, saisie, valider) {
     return new Promise(function (ok) {
       var fond = document.createElement('div');
       fond.className = 'boite-fond';
       fond.style.height = document.documentElement.scrollHeight + 'px';
       fond.innerHTML = '<div class="boite" role="dialog" aria-modal="true"><div>' + html + '</div>' +
         (saisie ? '<input id="boite-saisie" autocomplete="off" placeholder="' + saisie + '">' : '') +
+        '<p class="note" id="boite-msg" style="min-height:1.2em;margin:8px 0 0"></p>' +
         '<div class="ligne-btn">' + boutons.map(function (b, i) { return '<button class="btn ' + (b[2] || '') + '" data-i="' + i + '">' + b[0] + '</button>'; }).join('') + '</div></div>';
       document.body.appendChild(fond);
       var bt0 = fond.querySelector('.boite'); bt0.style.position = 'relative'; placer(bt0, -60);
       var champ = fond.querySelector('#boite-saisie');
       (champ || fond.querySelector('button')).focus();
-      fond.querySelectorAll('button').forEach(function (bt) {
-        bt.onclick = function () { var b = boutons[+bt.getAttribute('data-i')]; fond.remove(); ok(saisie ? { valeur: b[1], texte: champ.value } : b[1]); };
+      var msg = fond.querySelector('#boite-msg'), btns = fond.querySelectorAll('button');
+      function fermer(b) { fond.remove(); ok(saisie ? { valeur: b[1], texte: champ.value } : b[1]); }
+      btns.forEach(function (bt) {
+        bt.onclick = function () {
+          var b = boutons[+bt.getAttribute('data-i')];
+          if (!valider || !b[1]) return fermer(b);
+          btns.forEach(function (x) { x.disabled = true; });
+          msg.textContent = 'Vérification…';
+          valider(champ ? champ.value.trim() : b[1]).then(function (r) {
+            if (r === true) return fermer(b);
+            btns.forEach(function (x) { x.disabled = false; });
+            msg.textContent = r; if (champ) { champ.select(); champ.focus(); }
+          });
+        };
       });
+      // Entrée = bouton principal (le dernier)
+      if (champ) champ.onkeydown = function (e) { if (e.key === 'Enter') { e.preventDefault(); btns[btns.length - 1].click(); } };
     });
   }
   function toast(msg) {
@@ -2040,13 +2057,15 @@ table.hist tr.alerte td { color: var(--ko); }
   // Réglages protégés par un code parent quand la version le prévoit (version Google)
   function allerReglages() {
     if (!S.verifierParent) return aller('reglages');
+    if (document.querySelector('.boite-fond')) return;   // une fenêtre est déjà ouverte
     S.verifierParent('').then(function (deja) {
       if (deja) return aller('reglages');
-      boite('<b>Réglages réservés aux parents</b><p class="note">Entrez le code parent.</p>', [['Annuler', false, 'sec'], ['Ouvrir', true, '']], 'Code parent').then(function (r) {
-        if (!r.valeur) return;
-        S.verifierParent(r.texte.trim()).then(function (bon) { if (bon) aller('reglages'); else toast('Code parent incorrect.'); },
-          function () { toast('Vérification impossible : vérifiez la connexion.'); });
-      });
+      boite('<b>Réglages réservés aux parents</b><p class="note">Entrez le code parent.</p>', [['Annuler', false, 'sec'], ['Ouvrir', true, '']], 'Code parent',
+        function (texte) {
+          if (!texte) return Promise.resolve('Entrez le code parent.');
+          return S.verifierParent(texte).then(function (bon) { return bon ? true : 'Code parent incorrect.'; },
+            function () { return 'Vérification impossible : vérifiez la connexion.'; });
+        }).then(function (r) { if (r.valeur) aller('reglages'); });
     }, function () { toast('Vérification impossible : vérifiez la connexion.'); });
   }
   function aller(v) {
