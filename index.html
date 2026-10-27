@@ -145,7 +145,20 @@ table.hist tr.alerte td { color: var(--ko); }
   .kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); } .kpi .v { font-size: 23px; }
   .form-ligne label { width: 100%; } .tuile { padding: 14px; }
 }
-.hist-wrap { overflow-x: auto; } .fig { max-width: 100%; height: auto; }
+.hist-wrap { overflow-x: auto; }
+details.fiche { margin-top: 10px; background: var(--carte); border: 1px solid var(--ligne); border-radius: 10px; padding: 8px 12px; }
+details.fiche summary { cursor: pointer; font-weight: 600; color: var(--accent); } details.fiche p { margin: 8px 0; }
+.brouillon { margin-top: 14px; } .brouillon canvas { width: 100%; height: 320px; display: block; border: 2px dashed var(--ligne); border-radius: 12px; background: var(--fond); touch-action: none; cursor: crosshair; }
+details.classe { border-top: 1px solid var(--ligne); padding: 8px 0; } details.classe summary { cursor: pointer; font-weight: 600; }
+label.coche { display: block; padding: 4px 0 4px 8px; font-size: 15px; } label.coche input { margin-right: 6px; }
+.semaine { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 16px; }
+.sem-v { font-size: 19px; font-weight: 700; margin: 2px 0 6px; } .semaine .rail { height: 8px; background: var(--ligne); border-radius: 4px; overflow: hidden; }
+.semaine .rail div { height: 100%; background: var(--ok); }
+.badges { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
+.badge { display: flex; align-items: center; gap: 8px; padding: 10px; border-radius: 10px; border: 1px dashed var(--ligne); color: var(--muet); font-size: 14px; }
+.badge .b-ico { font-size: 22px; filter: grayscale(1); opacity: .45; }
+.badge.obtenu { border-style: solid; border-color: var(--accent); background: var(--accent-doux); color: var(--encre); }
+.badge.obtenu .b-ico { filter: none; opacity: 1; } .fig { max-width: 100%; height: auto; }
 </style></head>
 <body>
 <div class="app">
@@ -162,7 +175,8 @@ table.hist tr.alerte td { color: var(--ko); }
   <main id="vue"></main>
 </div>
 <div id="bulle" class="bulle"></div>
-<script>window.MATHOS_API = "https://script.google.com/macros/s/AKfycbwnLuU4_WzzCxwfYZMdCWswALxPhm3KdZ53QjJr6USZWBfcSCLS7p5_WIm_1hjPDHaJuQ/exec";</script>
+<script>window.MATHOS_API = "https://script.google.com/macros/s/AKfycbwnLuU4_WzzCxwfYZMdCWswALxPhm3KdZ53QjJr6USZWBfcSCLS7p5_WIm_1hjPDHaJuQ/exec";
+if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('sw.js').catch(function () {});</script>
 <script>
 /* MathOS — générateurs d'exercices d'automatismes (brevet, 3e).
    Chaque générateur renvoie une question nouvelle à chaque appel :
@@ -1640,6 +1654,23 @@ table.hist tr.alerte td { color: var(--ko); }
     return q;
   }
 
+  // Niveau de difficulté : on tire plusieurs questions de la même notion et on garde la plus simple
+  // (niveau 1) ou la plus exigeante (niveau 3), d'après la taille des nombres, les négatifs, décimaux et fractions.
+  function difficulte(q) {
+    var t = (q.texte + ' ' + (q.choix || []).join(' ')).replace(/<svg[\s\S]*?<\/svg>/g, '').replace(/<[^>]+>/g, ' ');
+    var nb = t.match(/\d+(,\d+)?/g) || [];
+    return nb.reduce(function (s, x) { return s + x.replace(',', '').length + (x.indexOf(',') >= 0 ? 2 : 0); }, 0) +
+      3 * (t.match(/−/g) || []).length + 2 * (q.texte.match(/class="frac"/g) || []).length;
+  }
+  function creerNiveau(g, niveau) {
+    if (!niveau || niveau === 2) return creer(g);
+    var cands = [creer(g), creer(g), creer(g), creer(g)];
+    cands.sort(function (a, b) { return difficulte(a) - difficulte(b); });
+    var q = niveau === 1 ? cands[0] : cands[cands.length - 1];
+    q.niveau = niveau;
+    return q;
+  }
+
   // Lecture tolérante de la réponse tapée : virgule ou point, fraction a/b, signe −, unité finale
   function lire(s) {
     s = String(s || '').replace(/[\s  ]/g, '').replace(/[−–]/g, '-').replace(/,/g, '.');
@@ -1681,9 +1712,457 @@ table.hist tr.alerte td { color: var(--ko); }
     return !!(m && pgcd(+m[1], +m[2]) > 1);
   }
 
-  global.Exos = { THEMES: THEMES, GENERATEURS: G, creer: creer, parId: G_byId, verifier: verifier, diagnostiquer: diagnostiquer,
+  global.Exos = { THEMES: THEMES, GENERATEURS: G, creer: creer, creerNiveau: creerNiveau, parId: G_byId, verifier: verifier, diagnostiquer: diagnostiquer,
                   nonSimplifiee: nonSimplifiee, lire: lire, f: f, shuffle: shuffle, pick: pick };
 })(window);
+
+</script>
+<script>
+/* MathOS — fiches méthode : la règle, un exemple résolu et le piège classique, pour chaque notion. */
+window.FICHES = {
+  /* ===== CALCUL ===== */
+  'priorites': {
+    regle: 'On calcule dans cet ordre : <b>1.</b> les parenthèses, <b>2.</b> les puissances, <b>3.</b> les × et ÷ (de gauche à droite), <b>4.</b> les + et − (de gauche à droite).',
+    exemple: '7 + 3 × (8 − 2)<br>= 7 + 3 × 6 (parenthèses)<br>= 7 + 18 = <b>25</b> (× avant +)',
+    piege: 'On ne calcule pas bêtement de gauche à droite : dans 7 + 3 × 6, la multiplication passe avant, donc ce n\'est pas 10 × 6 = 60.'
+  },
+  'relatifs': {
+    regle: 'Somme : même signe → on ajoute les distances à zéro et on garde le signe ; signes contraires → on fait la différence et on prend le signe du plus éloigné de zéro. Soustraire, c\'est ajouter l\'opposé. Produit ou quotient : signes identiques → +, signes contraires → −.',
+    exemple: '−9 + 4 = <b>−5</b> ; 3 − (−8) = 3 + 8 = <b>11</b><br>(−6) × (−7) = <b>42</b> ; (−24) ÷ 3 = <b>−8</b>',
+    piege: '« Moins par moins donne plus » ne vaut que pour × et ÷ : −9 − 4 = −13, et non 13.'
+  },
+  'carres': {
+    regle: 'Le carré de a est a² = a × a. La racine carrée de b (b ≥ 0) est le nombre <b>positif</b> dont le carré vaut b. Il faut connaître par cœur les carrés de 1 à 15.',
+    exemple: '13² = 13 × 13 = <b>169</b> ; √196 = <b>14</b> car 14 × 14 = 196<br>(−7)² = (−7) × (−7) = <b>49</b>',
+    piege: 'a² n\'est pas 2 × a : 13² = 169, pas 26 ; et un carré n\'est jamais négatif.'
+  },
+  'decimaux': {
+    regle: 'Pour + et −, on aligne les virgules. Pour ×, on multiplie sans les virgules, puis on met au résultat autant de chiffres après la virgule qu\'il y en a en tout dans les deux facteurs.',
+    exemple: '0,3 × 0,04 : 3 × 4 = 12, et 1 + 2 = 3 chiffres après la virgule → <b>0,012</b><br>4,7 + 2,85 = 4,70 + 2,85 = <b>7,55</b>',
+    piege: 'Compte bien les chiffres après la virgule : 0,3 × 0,4 = 0,12 (et non 1,2).'
+  },
+  'ordre-grandeur': {
+    regle: 'On remplace chaque nombre par une valeur « ronde » proche (souvent la dizaine la plus proche), puis on fait le calcul avec ces arrondis.',
+    exemple: '38 × 52 ≈ 40 × 50 = <b>2 000</b><br>(valeur exacte : 1 976, c\'est bien proche)',
+    piege: 'Compte les zéros avec soin : 40 × 50 = 2 000 (4 × 5 = 20, puis deux zéros), pas 200.'
+  },
+  'comparer-decimaux': {
+    regle: 'On compare d\'abord les parties entières, puis les dixièmes, puis les centièmes… Pour des nombres négatifs, le plus petit est celui qui est le plus éloigné de zéro.',
+    exemple: '3,7 et 3,65 : même partie entière, dixièmes 7 > 6, donc <b>3,7 > 3,65</b><br>−4,2 et −4,15 : −4,2 est plus loin de 0, donc <b>−4,2 < −4,15</b>',
+    piege: 'Plus de chiffres après la virgule ne veut pas dire plus grand : 3,65 < 3,7 (écris 3,70 pour comparer).'
+  },
+  'droite-graduee': {
+    regle: 'On regarde en combien de parts égales l\'unité (de 0 à 1) est partagée : si c\'est n parts, chaque graduation vaut <span class="frac"><span>1</span><span>n</span></span>. On compte ensuite les graduations depuis 0.',
+    exemple: 'L\'unité est coupée en 6 parts, chaque graduation vaut <span class="frac"><span>1</span><span>6</span></span>.<br>Le point est à 11 graduations de 0 : abscisse <b><span class="frac"><span>11</span><span>6</span></span></b>.',
+    piege: 'On compte les intervalles, pas les traits : entre 0 et 1, 5 petits traits intermédiaires font 6 parts, pas 5.'
+  },
+
+  /* ===== FRACTIONS ===== */
+  'frac-addition': {
+    regle: 'On met les fractions au <b>même dénominateur</b>, puis on additionne (ou soustrait) les numérateurs en gardant le dénominateur commun. On simplifie à la fin si possible.',
+    exemple: '<span class="frac"><span>2</span><span>3</span></span> + <span class="frac"><span>1</span><span>4</span></span> = <span class="frac"><span>8</span><span>12</span></span> + <span class="frac"><span>3</span><span>12</span></span> = <b><span class="frac"><span>11</span><span>12</span></span></b>',
+    piege: 'On n\'additionne jamais les dénominateurs : <span class="frac"><span>2</span><span>3</span></span> + <span class="frac"><span>1</span><span>4</span></span> n\'est pas <span class="frac"><span>3</span><span>7</span></span>.'
+  },
+  'frac-produit': {
+    regle: 'On multiplie les numérateurs entre eux et les dénominateurs entre eux : <span class="frac"><span>a</span><span>b</span></span> × <span class="frac"><span>c</span><span>d</span></span> = <span class="frac"><span>a × c</span><span>b × d</span></span>. Puis on simplifie.',
+    exemple: '<span class="frac"><span>3</span><span>5</span></span> × <span class="frac"><span>10</span><span>9</span></span> = <span class="frac"><span>30</span><span>45</span></span> = <b><span class="frac"><span>2</span><span>3</span></span></b> (on divise en haut et en bas par 15)',
+    piege: 'Pas besoin de dénominateur commun pour multiplier : ça, c\'est seulement pour + et −.'
+  },
+  'frac-division': {
+    regle: 'Diviser par une fraction, c\'est multiplier par son <b>inverse</b> : <span class="frac"><span>a</span><span>b</span></span> ÷ <span class="frac"><span>c</span><span>d</span></span> = <span class="frac"><span>a</span><span>b</span></span> × <span class="frac"><span>d</span><span>c</span></span>.',
+    exemple: '<span class="frac"><span>4</span><span>7</span></span> ÷ <span class="frac"><span>2</span><span>3</span></span> = <span class="frac"><span>4</span><span>7</span></span> × <span class="frac"><span>3</span><span>2</span></span> = <span class="frac"><span>12</span><span>14</span></span> = <b><span class="frac"><span>6</span><span>7</span></span></b>',
+    piege: 'On inverse seulement la deuxième fraction (celle par laquelle on divise), jamais la première.'
+  },
+  'frac-quantite': {
+    regle: 'Prendre <span class="frac"><span>a</span><span>b</span></span> d\'une quantité, c\'est la multiplier par <span class="frac"><span>a</span><span>b</span></span> : on divise par b, puis on multiplie par a.',
+    exemple: '<span class="frac"><span>3</span><span>8</span></span> de 56 : 56 ÷ 8 = 7, puis 7 × 3 = <b>21</b>',
+    piege: 'On divise par le dénominateur (le nombre du bas), pas par le numérateur : 56 ÷ 8, pas 56 ÷ 3.'
+  },
+  'frac-simplifier': {
+    regle: 'On divise le numérateur <b>et</b> le dénominateur par un même diviseur commun. La fraction est irréductible quand ils n\'ont plus d\'autre diviseur commun que 1.',
+    exemple: '<span class="frac"><span>18</span><span>42</span></span> = <span class="frac"><span>6 × 3</span><span>6 × 7</span></span> = <b><span class="frac"><span>3</span><span>7</span></span></b>',
+    piege: 'Si on ne divise qu\'un seul des deux nombres, la fraction change de valeur : on divise toujours les deux par le même nombre.'
+  },
+  'frac-comparer': {
+    regle: 'Avec le même dénominateur, la plus grande fraction a le plus grand numérateur. Sinon, on met au même dénominateur, on compare à 1, ou on calcule des valeurs approchées.',
+    exemple: '<span class="frac"><span>5</span><span>6</span></span> = <span class="frac"><span>15</span><span>18</span></span> et <span class="frac"><span>7</span><span>9</span></span> = <span class="frac"><span>14</span><span>18</span></span>, donc <b><span class="frac"><span>5</span><span>6</span></span> > <span class="frac"><span>7</span><span>9</span></span></b>',
+    piege: 'Un grand dénominateur ne fait pas une grande fraction : <span class="frac"><span>1</span><span>9</span></span> est plus petit que <span class="frac"><span>1</span><span>2</span></span>.'
+  },
+  'frac-decimal': {
+    regle: 'Une fraction est un quotient : <span class="frac"><span>a</span><span>b</span></span> = a ÷ b. À connaître : <span class="frac"><span>1</span><span>2</span></span> = 0,5 ; <span class="frac"><span>1</span><span>4</span></span> = 0,25 ; <span class="frac"><span>3</span><span>4</span></span> = 0,75 ; <span class="frac"><span>1</span><span>5</span></span> = 0,2 ; <span class="frac"><span>1</span><span>10</span></span> = 0,1.',
+    exemple: '<span class="frac"><span>7</span><span>20</span></span> = <span class="frac"><span>35</span><span>100</span></span> = <b>0,35</b> (on multiplie en haut et en bas par 5)<br>0,6 = <span class="frac"><span>6</span><span>10</span></span> = <b><span class="frac"><span>3</span><span>5</span></span></b>',
+    piege: '<span class="frac"><span>1</span><span>5</span></span> ne vaut pas 1,5 ni 0,5 : c\'est 1 ÷ 5 = 0,2.'
+  },
+  'ecritures-nombre': {
+    regle: 'Un même nombre peut s\'écrire en décimal, en fraction, en pourcentage ou en somme. Pour passer au pourcentage, on multiplie par 100 : 0,35 = <span class="frac"><span>35</span><span>100</span></span> = 35 %.',
+    exemple: '1,25 = <span class="frac"><span>125</span><span>100</span></span> = <span class="frac"><span>5</span><span>4</span></span> = 1 + <span class="frac"><span>1</span><span>4</span></span> = <b>125 %</b>',
+    piege: 'Attention aux pourcentages : 0,4 = 40 % (et non 4 %), car 4 % = 0,04.'
+  },
+
+  /* ===== PUISSANCES ===== */
+  'puiss-10': {
+    regle: '10<sup>a</sup> × 10<sup>b</sup> = 10<sup>a+b</sup> ; <span class="frac"><span>10<sup>a</sup></span><span>10<sup>b</sup></span></span> = 10<sup>a−b</sup> ; (10<sup>a</sup>)<sup>b</sup> = 10<sup>a×b</sup>.',
+    exemple: '10<sup>5</sup> × 10<sup>−2</sup> = 10<sup>5 + (−2)</sup> = <b>10<sup>3</sup></b><br><span class="frac"><span>10<sup>2</sup></span><span>10<sup>6</sup></span></span> = 10<sup>2 − 6</sup> = <b>10<sup>−4</sup></b> ; (10<sup>3</sup>)<sup>4</sup> = <b>10<sup>12</sup></b>',
+    piege: 'Pour un produit, on additionne les exposants (10<sup>3</sup> × 10<sup>4</sup> = 10<sup>7</sup>) ; on ne les multiplie que pour une puissance de puissance.'
+  },
+  'notation-sci': {
+    regle: 'L\'écriture scientifique est a × 10<sup>n</sup> avec <b>1 ≤ a < 10</b> (un seul chiffre non nul avant la virgule). n compte de combien de rangs on décale la virgule : positif pour un grand nombre, négatif pour un nombre inférieur à 1.',
+    exemple: '72 400 = <b>7,24 × 10<sup>4</sup></b> (virgule décalée de 4 rangs)<br>0,0063 = <b>6,3 × 10<sup>−3</sup></b> (virgule décalée de 3 rangs)',
+    piege: '72,4 × 10<sup>3</sup> est égal à 72 400 mais n\'est pas une écriture scientifique : le nombre devant doit être entre 1 et 10.'
+  },
+  'puiss-entier': {
+    regle: 'a<sup>n</sup> = a × a × … × a (n facteurs). Un nombre négatif à une puissance paire donne un résultat positif, à une puissance impaire un résultat négatif. Pour tout a ≠ 0, a<sup>0</sup> = 1.',
+    exemple: '5<sup>3</sup> = 5 × 5 × 5 = <b>125</b> ; (−3)<sup>4</sup> = <b>81</b> ; (−2)<sup>3</sup> = <b>−8</b><br>(−1)<sup>9</sup> = <b>−1</b> ; 37<sup>0</sup> = <b>1</b>',
+    piege: '5<sup>3</sup> n\'est pas 5 × 3 = 15 : c\'est 5 multiplié 3 fois par lui-même.'
+  },
+
+  /* ===== POURCENTAGES ===== */
+  'pourcent-de': {
+    regle: 'Prendre t % d\'un nombre, c\'est le multiplier par <span class="frac"><span>t</span><span>100</span></span>. Raccourcis : 10 % → ÷ 10 ; 50 % → la moitié ; 25 % → le quart ; 1 % → ÷ 100.',
+    exemple: '15 % de 80 = <span class="frac"><span>15</span><span>100</span></span> × 80 = <b>12</b><br>(10 % = 8 et 5 % = 4, donc 8 + 4 = 12)',
+    piege: 't % de N n\'est pas N − t : 15 % de 80, ce n\'est pas 80 − 15.'
+  },
+  'pourcent-evolution': {
+    regle: 'On calcule d\'abord la variation (t % du prix), puis on l\'ajoute (hausse) ou on la retire (baisse). Ou directement : prix × (1 + <span class="frac"><span>t</span><span>100</span></span>) ou prix × (1 − <span class="frac"><span>t</span><span>100</span></span>).',
+    exemple: 'Un objet à 70 € baisse de 30 % : 30 % de 70 = 21 €.<br>Nouveau prix : 70 − 21 = <b>49 €</b> (ou 70 × 0,7 = 49).',
+    piege: 'Baisser de 30 %, ce n\'est pas retirer 30 € : on retire 30 % du prix.'
+  },
+  'coef-multiplicateur': {
+    regle: 'Augmenter de t %, c\'est multiplier par <b>1 + <span class="frac"><span>t</span><span>100</span></span></b> ; diminuer de t %, c\'est multiplier par <b>1 − <span class="frac"><span>t</span><span>100</span></span></b>.',
+    exemple: 'Hausse de 8 % : coefficient 1 + 0,08 = <b>1,08</b><br>Baisse de 35 % : coefficient 1 − 0,35 = <b>0,65</b>',
+    piege: 'Multiplier par 0,08 donne seulement les 8 % (la hausse), pas le nouveau prix : il faut partir de 1 (= 100 %).'
+  },
+  'pourcent-proportion': {
+    regle: 'Pourcentage = <span class="frac"><span>partie</span><span>total</span></span> × 100. On peut aussi transformer la fraction pour avoir 100 au dénominateur.',
+    exemple: '9 élèves sur 25 : <span class="frac"><span>9</span><span>25</span></span> = <span class="frac"><span>36</span><span>100</span></span> (× 4 en haut et en bas), soit <b>36 %</b>',
+    piege: 'Le nombre d\'élèves (9) n\'est pas le pourcentage : il faut le ramener à 100.'
+  },
+
+  /* ===== PROPORTIONNALITÉ ===== */
+  'quatrieme-prop': {
+    regle: 'Dans un tableau de proportionnalité, on trouve la valeur manquante par le <b>produit en croix</b> (on multiplie en diagonale, puis on divise par le troisième nombre), ou en passant par l\'unité.',
+    exemple: '3 cahiers coûtent 7,50 €. Prix de 8 cahiers :<br>8 × 7,50 ÷ 3 = 60 ÷ 3 = <b>20 €</b> (un cahier coûte 2,50 €)',
+    piege: 'La proportionnalité ne marche pas avec des additions : 8 cahiers, ce n\'est pas « 5 cahiers de plus donc 5 € de plus ».'
+  },
+  'vitesse': {
+    regle: 'v = <span class="frac"><span>d</span><span>t</span></span> ; d = v × t ; t = <span class="frac"><span>d</span><span>v</span></span>. Les unités doivent aller ensemble (km, h et km/h).',
+    exemple: 'Un cycliste roule 2 h 30 min à 18 km/h.<br>2 h 30 min = 2,5 h, donc d = 18 × 2,5 = <b>45 km</b>.',
+    piege: '2 h 30 min ne fait pas 2,3 h mais 2,5 h : une demi-heure, c\'est 0,5 h.'
+  },
+  'echelle': {
+    regle: 'Sur une carte à l\'échelle <span class="frac"><span>1</span><span>E</span></span>, 1 cm représente E cm en réalité. Distance réelle = distance sur la carte × E, puis on convertit (1 km = 100 000 cm).',
+    exemple: 'Échelle <span class="frac"><span>1</span><span>40 000</span></span>, 6 cm sur la carte :<br>6 × 40 000 = 240 000 cm = <b>2,4 km</b>',
+    piege: 'N\'oublie pas de convertir : 240 000 cm, ce n\'est pas 240 000 m ni 240 km.'
+  },
+  'proportionnel-tableau': {
+    regle: 'Un tableau est proportionnel si on passe d\'une ligne à l\'autre en multipliant toujours par le <b>même nombre</b> : tous les quotients ligne 2 ÷ ligne 1 doivent être égaux.',
+    exemple: 'Quantités 2 ; 5 ; 7 et prix 6 ; 15 ; 22.<br>6 ÷ 2 = 3 ; 15 ÷ 5 = 3 ; mais 22 ÷ 7 ≠ 3 (21 ÷ 7 = 3) : <b>non proportionnel</b>.',
+    piege: 'Il ne suffit pas que les deux lignes augmentent ensemble : il faut vérifier TOUS les quotients.'
+  },
+
+  /* ===== CALCUL LITTÉRAL ===== */
+  'substitution': {
+    regle: 'On remplace la lettre par sa valeur, entre parenthèses si elle est négative, puis on respecte les priorités (le carré d\'abord, puis les ×, puis les + et −).',
+    exemple: '2x² − 3x + 1 pour x = −2 :<br>2 × (−2)² − 3 × (−2) + 1 = 2 × 4 + 6 + 1 = <b>15</b>',
+    piege: '(−2)² vaut 4 (positif), et x² n\'est pas 2 × x.'
+  },
+  'developper': {
+    regle: 'Simple distributivité : k(a + b) = ka + kb et k(a − b) = ka − kb. On multiplie le facteur par <b>chaque</b> terme de la parenthèse.',
+    exemple: '−3(2x − 5) = −3 × 2x + (−3) × (−5) = <b>−6x + 15</b>',
+    piege: 'On distribue à tous les termes, avec leur signe : −3(2x − 5) ne donne pas −6x − 5 ni −6x − 15.'
+  },
+  'reduire': {
+    regle: 'On regroupe les termes de même nature : les x² ensemble, les x ensemble, les nombres ensemble. Et x × x = x².',
+    exemple: '4x² + 3x − x² − 5x + 2 = (4 − 1)x² + (3 − 5)x + 2 = <b>3x² − 2x + 2</b>',
+    piege: 'On ne mélange pas les termes de nature différente : 3x + 2 ne se réduit pas en 5x, et x + x² ne fait pas 2x².'
+  },
+  'double-distrib': {
+    regle: '(a + b)(c + d) = ac + ad + bc + bd : chaque terme de la 1<sup>re</sup> parenthèse multiplie chaque terme de la 2<sup>e</sup>. À connaître : (a − b)(a + b) = a² − b².',
+    exemple: '(x + 3)(x − 7) = x² − 7x + 3x − 21 = <b>x² − 4x − 21</b><br>(2x − 5)(2x + 5) = 4x² − 25',
+    piege: 'Il y a quatre produits, pas deux : n\'oublie pas les produits « croisés » x × (−7) et 3 × x.'
+  },
+  'factoriser': {
+    regle: 'Factoriser, c\'est écrire sous forme de produit. On repère un facteur commun : ka + kb = k(a + b). On reconnaît aussi a² − b² = (a − b)(a + b).',
+    exemple: '6x + 15 = 3 × 2x + 3 × 5 = <b>3(2x + 5)</b><br>x² − 64 = x² − 8² = <b>(x − 8)(x + 8)</b>',
+    piege: 'Vérifie en redéveloppant : 3(2x + 15) redonne 6x + 45, pas 6x + 15 (il fallait diviser 15 par 3).'
+  },
+  'programme-calcul': {
+    regle: 'On applique les étapes dans l\'ordre, chacune sur le <b>résultat</b> de l\'étape précédente. En notant x le nombre de départ, on peut écrire le programme comme une expression.',
+    exemple: '« Choisir un nombre, ajouter 4, multiplier le résultat par 3 » avec −6 :<br>−6 + 4 = −2, puis −2 × 3 = <b>−6</b>. En général : 3(x + 4).',
+    piege: '« Multiplier le résultat par 3 » porte sur tout le calcul précédent : c\'est (−6 + 4) × 3, pas −6 + 4 × 3.'
+  },
+  'expressions-n': {
+    regle: 'Double : 2n ; triple : 3n ; moitié : <span class="frac"><span>n</span><span>2</span></span> ; carré : n² ; cube : n³ ; successeur : n + 1 ; prédécesseur : n − 1.',
+    exemple: 'Pour n = 7 : double 14 ; moitié 3,5 ; carré 49 ; successeur 8 ; prédécesseur 6.<br>« Le double du successeur de n » s\'écrit <b>2(n + 1)</b>.',
+    piege: 'Ne confonds pas 2n (le double, n + n) et n² (le carré, n × n).'
+  },
+
+  /* ===== ÉQUATIONS ===== */
+  'equation-1': {
+    regle: 'On isole x en faisant la même opération des deux côtés : on enlève d\'abord le nombre ajouté (opération contraire), puis on divise par le coefficient de x.',
+    exemple: '4x − 7 = 13<br>4x = 13 + 7 = 20<br>x = 20 ÷ 4 = <b>5</b> (vérification : 4 × 5 − 7 = 13)',
+    piege: 'Pour « enlever » le 4 de 4x, on divise par 4 (et non on soustrait 4).'
+  },
+  'equation-2': {
+    regle: 'On regroupe les termes en x d\'un côté et les nombres de l\'autre (en ajoutant ou soustrayant la même chose des deux côtés), puis on divise par le coefficient de x.',
+    exemple: '7x + 2 = 3x + 18<br>7x − 3x = 18 − 2, soit 4x = 16<br>x = 16 ÷ 4 = <b>4</b>',
+    piege: 'Quand un terme change de côté, son signe change : 3x à droite devient −3x à gauche.'
+  },
+  'test-solution': {
+    regle: 'On remplace x par le nombre proposé dans <b>chaque</b> membre, séparément. Si les deux côtés donnent le même résultat, le nombre est solution ; sinon, il ne l\'est pas.',
+    exemple: '3 est-il solution de 5x − 4 = 2x + 5 ?<br>Gauche : 5 × 3 − 4 = 11. Droite : 2 × 3 + 5 = 11. Égaux : <b>oui</b>.',
+    piege: 'Il faut calculer les deux côtés : un seul côté ne permet pas de conclure.'
+  },
+  'equation-carre': {
+    regle: 'Si a > 0, l\'équation x² = a a <b>deux</b> solutions : √a et −√a. Si a = 0, une seule solution : 0. Si a < 0, aucune solution.',
+    exemple: 'x² = 121 : les solutions sont <b>11 et −11</b>, car 11² = 121 et (−11)² = 121.',
+    piege: 'N\'oublie pas la solution négative : (−11)² = 121 aussi.'
+  },
+  'equation-calcul': {
+    regle: 'Pour résoudre ax + b = c, on « défait » dans l\'ordre inverse : on enlève b (opération contraire), puis on divise par a. On obtient x = <span class="frac"><span>c − b</span><span>a</span></span>.',
+    exemple: '6x + 5 = 29 : 6x = 29 − 5, donc x = <span class="frac"><span>29 − 5</span><span>6</span></span> = <span class="frac"><span>24</span><span>6</span></span> = <b>4</b>',
+    piege: 'Il faut d\'abord soustraire 5, puis diviser TOUT par 6 : ce n\'est pas <span class="frac"><span>29</span><span>6</span></span> − 5.'
+  },
+
+  /* ===== ARITHMÉTIQUE ===== */
+  'premier': {
+    regle: 'Un nombre premier a exactement <b>deux</b> diviseurs : 1 et lui-même. Les premiers jusqu\'à 30 : 2, 3, 5, 7, 11, 13, 17, 19, 23, 29. Pour tester n, on essaie de le diviser par 2, 3, 5, 7…',
+    exemple: '91 = 7 × 13 : <b>91 n\'est pas premier</b>.<br>37 n\'est divisible ni par 2, ni par 3, ni par 5 (et 7² = 49 > 37) : <b>37 est premier</b>.',
+    piege: '1 n\'est pas premier (un seul diviseur), et un nombre impair n\'est pas forcément premier (ex. 91, 51 = 3 × 17).'
+  },
+  'divisibilite': {
+    regle: 'Divisible par 2 : dernier chiffre pair. Par 5 : se termine par 0 ou 5. Par 10 : se termine par 0. Par 3 : somme des chiffres divisible par 3. Par 9 : somme des chiffres divisible par 9.',
+    exemple: '4 572 : somme des chiffres 4 + 5 + 7 + 2 = 18.<br>18 est divisible par 9, donc <b>4 572 est divisible par 3 et par 9</b> (et par 2, car il finit par 2).',
+    piege: 'Pour 3 et 9, on regarde la somme des chiffres, pas le dernier chiffre : 27 finit par 7 mais est divisible par 3.'
+  },
+  'decomposition': {
+    regle: 'On divise le nombre successivement par les nombres premiers 2, 3, 5, 7… tant que c\'est possible. On écrit le résultat avec des puissances. Tous les facteurs doivent être premiers.',
+    exemple: '360 = 2 × 180 = 2 × 2 × 90 = 2 × 2 × 2 × 45 = 2 × 2 × 2 × 3 × 3 × 5<br>donc 360 = <b>2<sup>3</sup> × 3<sup>2</sup> × 5</b>',
+    piege: '4 × 90 vaut bien 360 mais ce n\'est pas une décomposition en facteurs premiers : 4 et 90 ne sont pas premiers.'
+  },
+  'division-euclidienne': {
+    regle: 'Diviser a par b, c\'est écrire a = b × q + r avec <b>0 ≤ r < b</b>. q est le quotient, r est le reste.',
+    exemple: 'Division de 59 par 8 : 8 × 7 = 56 et 59 − 56 = 3.<br>59 = 8 × 7 + 3 : quotient <b>7</b>, reste <b>3</b> (3 < 8).',
+    piege: 'Ne confonds pas quotient et reste, et vérifie que le reste est plus petit que le diviseur.'
+  },
+  'diviseurs': {
+    regle: 'On cherche les diviseurs <b>par paires</b> : on teste 1, 2, 3… et pour chaque diviseur d trouvé, n ÷ d en est un aussi. On s\'arrête quand les paires se rejoignent.',
+    exemple: '40 = 1 × 40 = 2 × 20 = 4 × 10 = 5 × 8<br>Diviseurs de 40 : 1, 2, 4, 5, 8, 10, 20, 40, soit <b>8 diviseurs</b>.',
+    piege: 'N\'oublie pas 1 et le nombre lui-même : ce sont toujours des diviseurs.'
+  },
+
+  /* ===== STATISTIQUES ===== */
+  'moyenne': {
+    regle: 'Moyenne = <span class="frac"><span>somme des valeurs</span><span>nombre de valeurs</span></span>.',
+    exemple: 'Notes : 11 ; 16 ; 8 ; 13.<br>(11 + 16 + 8 + 13) ÷ 4 = 48 ÷ 4 = <b>12</b>',
+    piege: 'On divise par le nombre de valeurs (ici 4), pas par une autre quantité comme la note maximale.'
+  },
+  'mediane': {
+    regle: 'On range les valeurs dans l\'ordre croissant. La médiane partage la série en deux groupes de même effectif : avec un nombre impair de valeurs, c\'est celle du milieu ; avec un nombre pair, c\'est la moyenne des deux du milieu.',
+    exemple: 'Série : 9 ; 4 ; 15 ; 7 ; 12 ; 6 → rangée : 4 ; 6 ; <b>7 ; 9</b> ; 12 ; 15.<br>6 valeurs : médiane = (7 + 9) ÷ 2 = <b>8</b>',
+    piege: 'Il faut d\'abord ranger les valeurs : la valeur au milieu de la liste non triée n\'est pas la médiane.'
+  },
+  'etendue': {
+    regle: 'Étendue = plus grande valeur − plus petite valeur.',
+    exemple: 'Températures : 3 °C ; −4 °C ; 9 °C ; 1 °C.<br>Étendue = 9 − (−4) = 9 + 4 = <b>13 °C</b>',
+    piege: 'Attention aux valeurs négatives : 9 − (−4) = 13, et non 5.'
+  },
+  'moyenne-ponderee': {
+    regle: 'Moyenne pondérée = <span class="frac"><span>somme des (valeur × coefficient)</span><span>somme des coefficients</span></span>.',
+    exemple: 'Note 10 coefficient 1, note 16 coefficient 2 :<br>(10 × 1 + 16 × 2) ÷ (1 + 2) = 42 ÷ 3 = <b>14</b>',
+    piege: 'On divise par la somme des coefficients (3), pas par le nombre de notes (2).'
+  },
+  'frequence': {
+    regle: 'Fréquence = <span class="frac"><span>effectif</span><span>effectif total</span></span>. Elle est entre 0 et 1 ; pour l\'avoir en pourcentage, on multiplie par 100.',
+    exemple: '12 élèves sur 30 font du théâtre :<br>fréquence = <span class="frac"><span>12</span><span>30</span></span> = <b>0,4</b>, soit <b>40 %</b>',
+    piege: 'L\'effectif (12) n\'est pas la fréquence : il faut diviser par l\'effectif TOTAL (30).'
+  },
+  'diagramme': {
+    regle: 'Dans un diagramme en barres, l\'effectif se lit à la hauteur de la barre sur l\'axe vertical. On repère d\'abord ce que vaut <b>une graduation</b>.',
+    exemple: 'L\'axe va de 0 à 20 avec une graduation tous les 2. La barre « Tennis » s\'arrête 7 graduations au-dessus de 0 : <b>14 élèves</b>.',
+    piege: 'Une graduation ne vaut pas toujours 1 : lis bien les nombres écrits sur l\'axe.'
+  },
+  'graphique-temps': {
+    regle: 'Le temps se lit sur l\'axe horizontal, la grandeur (température…) sur l\'axe vertical. Pour une valeur à une heure donnée : on monte jusqu\'à la courbe, puis on lit à gauche. Une variation = valeur d\'arrivée − valeur de départ.',
+    exemple: 'À 6 h il fait 10 °C, à 14 h il fait 25 °C.<br>Variation entre 6 h et 14 h : 25 − 10 = <b>+15 °C</b> ; durée : 14 − 6 = <b>8 h</b>.',
+    piege: 'Ne confonds pas les deux axes : une heure n\'est pas une température, et une durée se calcule par une soustraction.'
+  },
+  'diagramme-circulaire': {
+    regle: 'Le disque entier (360°) représente l\'effectif total. Un secteur d\'angle a° représente la fraction <span class="frac"><span>a</span><span>360</span></span> de l\'effectif total.',
+    exemple: 'Secteur de 120° pour 45 personnes au total :<br><span class="frac"><span>120</span><span>360</span></span> = <span class="frac"><span>1</span><span>3</span></span>, et <span class="frac"><span>1</span><span>3</span></span> de 45 = <b>15 personnes</b>',
+    piege: 'L\'angle du secteur (120°) n\'est pas le nombre de personnes : il faut le convertir en fraction de 360°.'
+  },
+
+  /* ===== PROBABILITÉS ===== */
+  'urne': {
+    regle: 'Quand tous les tirages sont équiprobables : P = <span class="frac"><span>nombre de cas favorables</span><span>nombre total de cas</span></span>.',
+    exemple: 'Une urne contient 4 boules rouges, 7 vertes et 9 bleues (20 boules).<br>P(verte) = <b><span class="frac"><span>7</span><span>20</span></span></b> = 0,35',
+    piege: 'On divise par le nombre TOTAL de boules (20), pas par le nombre des autres boules (13).'
+  },
+  'de': {
+    regle: 'Un dé équilibré a 6 issues équiprobables (1 à 6). P(événement) = <span class="frac"><span>nombre de faces qui conviennent</span><span>6</span></span>.',
+    exemple: 'P(obtenir un multiple de 3) : les faces 3 et 6 conviennent.<br>P = <span class="frac"><span>2</span><span>6</span></span> = <b><span class="frac"><span>1</span><span>3</span></span></b>',
+    piege: 'Liste bien toutes les faces qui conviennent : « au moins 5 » compte le 5 ET le 6.'
+  },
+  'contraire': {
+    regle: 'L\'événement contraire de A (noté non A) se réalise quand A ne se réalise pas. P(non A) = <b>1 − P(A)</b>.',
+    exemple: 'P(gagner) = 0,38, donc P(ne pas gagner) = 1 − 0,38 = <b>0,62</b>',
+    piege: 'La somme vaut 1, pas 100 (sauf si on travaille en pourcentages : 100 % − 38 % = 62 %).'
+  },
+  'proba-possible': {
+    regle: 'Une probabilité est toujours comprise <b>entre 0 et 1</b> (entre 0 % et 100 %). 0 : événement impossible ; 1 : événement certain.',
+    exemple: '0,7 ; <span class="frac"><span>2</span><span>9</span></span> ; 45 % peuvent être des probabilités.<br><b>1,3</b>, <b>−0,2</b>, <b><span class="frac"><span>7</span><span>4</span></span></b> ou <b>120 %</b> ne le peuvent pas.',
+    piege: 'Une fraction dont le numérateur est plus grand que le dénominateur dépasse 1 : ce n\'est pas une probabilité.'
+  },
+
+  /* ===== FONCTIONS ===== */
+  'image': {
+    regle: 'L\'image de a par f est f(a) : on <b>remplace x par a</b> dans l\'expression de f, puis on calcule.',
+    exemple: 'f(x) = −3x + 8. Image de 4 : f(4) = −3 × 4 + 8 = −12 + 8 = <b>−4</b><br>g(x) = x² − 6 : g(−3) = (−3)² − 6 = 9 − 6 = <b>3</b>',
+    piege: '−3x signifie −3 × x : on multiplie, on n\'additionne pas.'
+  },
+  'antecedent': {
+    regle: 'Un antécédent de b par f est un nombre x tel que f(x) = b : on <b>résout l\'équation</b> f(x) = b.',
+    exemple: 'f(x) = 4x − 3. Antécédent de 17 :<br>4x − 3 = 17, donc 4x = 20 et x = <b>5</b> (vérification : f(5) = 17)',
+    piege: 'Chercher un antécédent, ce n\'est pas calculer f(17) : on cherche le x de départ.'
+  },
+  'lecture-graphique': {
+    regle: 'Image de a : on part de a sur l\'axe <b>horizontal</b> (abscisses), on va jusqu\'à la courbe, on lit l\'ordonnée. Antécédent de b : on part de b sur l\'axe <b>vertical</b> (ordonnées), on va jusqu\'à la courbe, on lit l\'abscisse.',
+    exemple: 'La droite passe par le point (2 ; −1).<br>Donc l\'image de 2 est <b>−1</b>, et un antécédent de −1 est <b>2</b>.',
+    piege: 'Ne pars pas du mauvais axe : pour une image, on part toujours de l\'axe horizontal.'
+  },
+  'lineaire': {
+    regle: 'Une fonction linéaire s\'écrit f(x) = ax (pas de nombre ajouté, pas de carré). Elle traduit la proportionnalité. Si f(k) = m, alors a = m ÷ k.',
+    exemple: 'f est linéaire et f(−4) = 28 : a × (−4) = 28, donc a = 28 ÷ (−4) = <b>−7</b>, et f(x) = −7x.',
+    piege: 'f(x) = 5x + 1 est affine mais pas linéaire : à cause du « + 1 », f(0) n\'est pas égal à 0.'
+  },
+  'notation-fonction': {
+    regle: 'Dans l\'écriture f(a) = b : a (entre parenthèses) est l\'<b>antécédent</b>, b (le résultat) est l\'<b>image</b>. On dit « l\'image de a par f est b ».',
+    exemple: 'f(6) = −2 signifie : <b>l\'image de 6 par f est −2</b>, et 6 est un antécédent de −2.',
+    piege: 'Ne pas inverser : dans f(6) = −2, c\'est −2 l\'image, pas 6.'
+  },
+
+  /* ===== GÉOMÉTRIE ===== */
+  'pythagore': {
+    regle: 'Dans un triangle rectangle, le carré de l\'hypoténuse (le côté face à l\'angle droit, le plus long) est égal à la somme des carrés des deux autres côtés : BC² = AB² + AC² (rectangle en A).',
+    exemple: 'Rectangle en A avec AB = 9 cm et AC = 12 cm :<br>BC² = 81 + 144 = 225, donc BC = √225 = <b>15 cm</b>.<br>Si on cherche un petit côté, on soustrait : AC² = BC² − AB².',
+    piege: 'On travaille sur les carrés : BC n\'est pas 9 + 12 = 21, et il ne faut pas oublier la racine carrée à la fin.'
+  },
+  'angles': {
+    regle: 'La somme des angles d\'un triangle vaut <b>180°</b>. Dans un triangle isocèle, les deux angles à la base sont égaux. Dans un triangle rectangle, les deux angles aigus ont pour somme 90°.',
+    exemple: 'Triangle isocèle d\'angle au sommet 40° :<br>180 − 40 = 140, puis 140 ÷ 2 = <b>70°</b> pour chaque angle à la base.',
+    piege: 'Dans un triangle isocèle, n\'oublie pas de diviser par 2 ce qui reste pour les deux angles à la base.'
+  },
+  'aires': {
+    regle: 'Rectangle : L × l. Triangle : <span class="frac"><span>base × hauteur</span><span>2</span></span>. Disque : π × r². Périmètre du cercle : 2 × π × r (= π × diamètre).',
+    exemple: 'Triangle de base 7 cm et de hauteur 6 cm : (7 × 6) ÷ 2 = <b>21 cm²</b><br>Disque de rayon 5 cm : π × 5² = <b>25π cm²</b> ; son périmètre : 2 × π × 5 = <b>10π cm</b>',
+    piege: 'Ne confonds pas aire (π × r², en cm²) et périmètre (2 × π × r, en cm).'
+  },
+  'perimetres': {
+    regle: 'Le périmètre est la longueur du tour : on additionne tous les côtés. Rectangle : 2 × (L + l). Polygone régulier à n côtés de longueur c : n × c. Cercle : π × diamètre.',
+    exemple: 'Rectangle de 11 cm sur 4 cm : 2 × (11 + 4) = <b>30 cm</b><br>Pentagone régulier de côté 7 cm : 5 × 7 = <b>35 cm</b>',
+    piege: 'Un périmètre est une longueur, en cm (pas en cm²), et ce n\'est pas L × l (ça, c\'est l\'aire).'
+  },
+  'volumes': {
+    regle: 'Pavé droit : V = L × l × h. Cube d\'arête a : V = a × a × a = a³. Le volume s\'exprime en unités cubes (cm³, m³…).',
+    exemple: 'Pavé de 7 cm × 4 cm × 3 cm : 7 × 4 × 3 = <b>84 cm³</b><br>Cube d\'arête 7 cm : 7 × 7 × 7 = <b>343 cm³</b>',
+    piege: 'a³ n\'est pas 3 × a : pour un cube d\'arête 7, c\'est 343 et pas 21.'
+  },
+  'volumes-prisme-cylindre': {
+    regle: 'Prisme droit et cylindre : <b>V = aire de la base × hauteur</b>. Pour un cylindre de rayon r : V = π × r² × h.',
+    exemple: 'Prisme à base triangle rectangle de côtés 3 cm et 8 cm, hauteur 5 cm :<br>base = (3 × 8) ÷ 2 = 12 cm², V = 12 × 5 = <b>60 cm³</b>.<br>Cylindre r = 3 cm, h = 4 cm : π × 9 × 4 = <b>36π cm³</b>',
+    piege: 'Si la base est un triangle, n\'oublie pas de diviser par 2 pour son aire.'
+  },
+  'agrandissement': {
+    regle: 'Dans un agrandissement ou une réduction de rapport k : les longueurs sont multipliées par k, les <b>aires par k²</b>, les <b>volumes par k³</b>. Les angles ne changent pas.',
+    exemple: 'Longueurs multipliées par 6 :<br>aires × 6² = <b>× 36</b> ; volumes × 6³ = <b>× 216</b>',
+    piege: 'Les aires ne sont pas multipliées par k, ni par 2k, mais par k².'
+  },
+  'thales': {
+    regle: 'Si A, D, B et A, E, C sont alignés et (DE) // (BC), alors <span class="frac"><span>AD</span><span>AB</span></span> = <span class="frac"><span>AE</span><span>AC</span></span> = <span class="frac"><span>DE</span><span>BC</span></span> (petit triangle en haut, grand triangle en bas). On calcule ensuite par produit en croix.',
+    exemple: 'AD = 4 cm, AB = 10 cm, DE = 6 cm : <span class="frac"><span>4</span><span>10</span></span> = <span class="frac"><span>6</span><span>BC</span></span><br>BC = 6 × 10 ÷ 4 = 60 ÷ 4 = <b>15 cm</b>',
+    piege: 'Les longueurs se mesurent depuis le sommet A : on écrit AD et AB, pas DB.'
+  },
+  'cosinus': {
+    regle: 'Dans un triangle rectangle : cos(angle aigu) = <span class="frac"><span>côté adjacent</span><span>hypoténuse</span></span>. Donc côté adjacent = hypoténuse × cos(angle). Un cosinus est toujours entre 0 et 1.',
+    exemple: 'Triangle ABC rectangle en A, AB = 12 cm et BC = 13 cm :<br>cos(ABC) = <span class="frac"><span>AB</span><span>BC</span></span> = <b><span class="frac"><span>12</span><span>13</span></span></b>',
+    piege: 'L\'hypoténuse (face à l\'angle droit) se met toujours au dénominateur ; le côté opposé à l\'angle ne sert pas pour le cosinus.'
+  },
+  'transformations': {
+    regle: 'Symétrie axiale d\'axe (d) : (d) est la médiatrice de [AA\']. Symétrie de centre O : O est le milieu de [AA\']. Translation : tous les points glissent de la même façon. Ces trois transformations conservent les longueurs, les angles et les aires.',
+    exemple: 'Par une symétrie centrale, un segment de 8 cm a pour image un segment de <b>8 cm</b>, et un angle de 35° un angle de <b>35°</b>.',
+    piege: 'Une symétrie ne change pas les mesures : elle déplace ou retourne la figure, elle ne l\'agrandit pas.'
+  },
+  'translation-motifs': {
+    regle: 'Une translation fait glisser chaque motif du <b>même déplacement</b> (même nombre de cases, dans la même direction). On repère le déplacement entre le motif de départ et son image, puis on le reproduit.',
+    exemple: 'Si le motif 2 va sur le motif 7 en se décalant de 1 case à droite et 1 case vers le bas, alors l\'image du motif 5 s\'obtient avec le même décalage depuis le motif 5 : c\'est le <b>motif 10</b>.',
+    piege: 'L\'image donnée (motif 7) est celle du motif 2, pas celle du motif demandé : applique le déplacement au bon motif.'
+  },
+  'reperage': {
+    regle: 'Un point a pour coordonnées (abscisse ; ordonnée) : on lit d\'abord l\'abscisse sur l\'axe <b>horizontal</b>, puis l\'ordonnée sur l\'axe <b>vertical</b>. À gauche ou en bas de l\'origine, la coordonnée est négative.',
+    exemple: 'Un point situé 3 carreaux à gauche de l\'axe vertical et 2 carreaux au-dessus de l\'axe horizontal a pour coordonnées <b>(−3 ; 2)</b>.',
+    piege: 'L\'ordre compte : (−3 ; 2) et (2 ; −3) sont deux points différents.'
+  },
+  'codage': {
+    regle: 'Des petits traits identiques indiquent des longueurs égales ; un petit carré indique un angle droit. On ne déduit la nature d\'une figure <b>que de ce qui est codé</b>, pas de son allure.',
+    exemple: 'Un quadrilatère avec 4 côtés codés égaux et un angle droit codé est un <b>carré</b> ; sans angle droit codé, c\'est seulement un <b>losange</b>.',
+    piege: 'Une figure qui « a l\'air » d\'un rectangle n\'en est pas forcément un : sans codage d\'angle droit, on ne peut pas l\'affirmer.'
+  },
+  'vocab-angles': {
+    regle: 'Aigu : moins de 90° ; droit : 90° ; obtus : entre 90° et 180° ; plat : 180°. Complémentaires : somme 90°. Supplémentaires : somme 180°. Deux angles opposés par le sommet sont égaux.',
+    exemple: 'Le supplémentaire de 128° : 180 − 128 = <b>52°</b>.<br>Le complémentaire de 27° : 90 − 27 = <b>63°</b>.',
+    piege: 'Ne confonds pas complémentaires (90°) et supplémentaires (180°).'
+  },
+  'solides': {
+    regle: 'Prisme droit : 2 bases superposables et des faces rectangulaires. Pyramide : 1 base et des faces triangulaires qui se rejoignent au sommet. Cylindre : 2 disques ; cône : 1 disque et un sommet ; boule : aucune face plane.',
+    exemple: 'Un pavé droit a <b>6 faces</b>, 8 sommets et 12 arêtes.<br>Une pyramide à base carrée a 1 + 4 = <b>5 faces</b> et 5 sommets.',
+    piege: 'Ne confonds pas faces (surfaces planes), arêtes (segments) et sommets (coins).'
+  },
+  'diagonales': {
+    regle: 'Diagonales de même milieu → <b>parallélogramme</b>. De même milieu et de même longueur → <b>rectangle</b>. De même milieu et perpendiculaires → <b>losange</b>. Les trois à la fois → <b>carré</b>.',
+    exemple: 'Les diagonales de ABCD se coupent en leur milieu et sont perpendiculaires, mais n\'ont pas la même longueur : ABCD est un <b>losange</b>.',
+    piege: 'Diagonales perpendiculaires ne suffit pas : il faut aussi qu\'elles se coupent en leur milieu.'
+  },
+
+  /* ===== GRANDEURS ET UNITÉS ===== */
+  'conv-longueurs': {
+    regle: 'km – hm – dam – m – dm – cm – mm : d\'une unité à la suivante, on multiplie (vers la droite) ou divise (vers la gauche) par <b>10</b>.',
+    exemple: '3,4 km = 3 400 m (× 1 000)<br>275 mm = <b>27,5 cm</b> (÷ 10)',
+    piege: 'Vers une unité plus petite, le nombre devient plus grand : 3,4 km donne 3 400 m, pas 0,0034 m.'
+  },
+  'conv-aires': {
+    regle: 'Pour les aires, on passe d\'une unité à la suivante en multipliant ou divisant par <b>100</b> (2 chiffres par unité dans le tableau) : 1 m² = 100 dm² = 10 000 cm².',
+    exemple: '2,5 m² = 2,5 × 10 000 = <b>25 000 cm²</b><br>800 cm² = <b>8 dm²</b> (÷ 100)',
+    piege: '1 m² ne fait pas 100 cm² mais 10 000 cm² (100 × 100).'
+  },
+  'conv-volumes': {
+    regle: 'Pour les volumes, on passe d\'une unité à la suivante par <b>1 000</b>. À retenir : 1 L = 1 dm³ = 1 000 cm³ ; 1 mL = 1 cm³ ; 1 m³ = 1 000 L. Et L – dL – cL – mL vont de 10 en 10.',
+    exemple: '3,2 L = 3,2 × 1 000 = <b>3 200 cm³</b><br>45 cL = <b>0,45 L</b> (÷ 100)',
+    piege: '1 dm³ = 1 000 cm³ (et non 100) : pour les volumes, c\'est 3 chiffres par unité.'
+  },
+  'conv-masses': {
+    regle: 't, …, kg – hg – dag – g – dg – cg – mg : de 10 en 10 entre unités voisines. À retenir : 1 t = 1 000 kg ; 1 kg = 1 000 g ; 1 g = 1 000 mg.',
+    exemple: '2,35 kg = 2,35 × 1 000 = <b>2 350 g</b><br>640 g = 640 ÷ 1 000 = <b>0,64 kg</b>',
+    piege: '1 kg = 1 000 g, pas 100 g : « kilo » veut dire mille.'
+  },
+  'conv-durees': {
+    regle: '1 h = 60 min ; 1 min = 60 s ; 1 jour = 24 h. Les durées ne sont <b>pas décimales</b> : pour passer des heures aux minutes on multiplie par 60, des minutes aux heures on divise par 60.',
+    exemple: '1,4 h = 1,4 × 60 = <b>84 min</b> (soit 1 h 24 min)<br>3 h 20 min = 180 + 20 = <b>200 min</b> ; 45 min = 45 ÷ 60 = <b>0,75 h</b>',
+    piege: '1,4 h n\'est pas 1 h 40 min : 0,4 h = 0,4 × 60 = 24 min.'
+  },
+  'conv-vitesses': {
+    regle: '1 m/s = 3 600 m/h = 3,6 km/h. Donc m/s → km/h : on <b>multiplie par 3,6</b> ; km/h → m/s : on <b>divise par 3,6</b>.',
+    exemple: '12 m/s = 12 × 3,6 = <b>43,2 km/h</b><br>54 km/h = 54 ÷ 3,6 = <b>15 m/s</b> (54 000 m en 3 600 s)',
+    piege: 'Il faut convertir les distances ET les durées : 54 km/h ne fait pas 54 000 m/s.'
+  },
+
+  /* ===== ALGORITHMIQUE ===== */
+  'scratch': {
+    regle: 'Pour tracer un polygone régulier à n côtés, on répète n fois « avancer, puis tourner de <b>360 ÷ n</b> degrés » (le lutin tourne de l\'angle extérieur). Pour un programme de calcul, on exécute les blocs dans l\'ordre, de haut en bas.',
+    exemple: 'Hexagone régulier : répéter <b>6</b> fois « avancer de 50 pas ; tourner de <b>60</b> degrés » (360 ÷ 6 = 60).',
+    piege: 'Pour un triangle équilatéral, on tourne de 120° (angle extérieur), et non de 60° (angle intérieur).'
+  }
+};
 
 </script>
 <script>
@@ -1927,7 +2406,27 @@ table.hist tr.alerte td { color: var(--ko); }
   function dateCourte(iso) { var d = new Date(iso); return d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' }) + ' ' + d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }); }
   function jour(iso) { return iso.slice(0, 10); }
   function mmss(s) { s = Math.max(0, Math.round(s)); return Math.floor(s / 60) + ':' + ('0' + (s % 60)).slice(-2); }
-  function arreterMinuteur() { if (minuteur) { clearInterval(minuteur); minuteur = null; } }
+  var minuteurQ = null;
+  function arreterMinuteurQ() { if (minuteurQ) { clearInterval(minuteurQ); minuteurQ = null; } }
+  function arreterMinuteur() { if (minuteur) { clearInterval(minuteur); minuteur = null; } arreterMinuteurQ(); taire(); }
+
+  // Lecture à voix haute (synthèse vocale du navigateur) : les écritures mathématiques sont dites en français
+  function texteOral(html) {
+    return String(html).replace(/<svg[\s\S]*?<\/svg>/g, '').replace(/<table[\s\S]*?<\/table>/g, ' (voir le tableau) ')
+      .replace(/<span class="frac"><span>([^<]*)<\/span><span>([^<]*)<\/span><\/span>/g, ' $1 sur $2 ')
+      .replace(/<sup>2<\/sup>|²/g, ' au carré ').replace(/<sup>3<\/sup>|³/g, ' au cube ').replace(/<sup>([^<]*)<\/sup>/g, ' puissance $1 ')
+      .replace(/<small>[\s\S]*?<\/small>/g, '').replace(/<[^>]+>/g, ' ')
+      .replace(/×/g, ' fois ').replace(/÷/g, ' divisé par ').replace(/√/g, ' racine carrée de ').replace(/−/g, ' moins ').replace(/≈/g, ' environ ')
+      .replace(/\s+/g, ' ').trim();
+  }
+  function lire(txt) {
+    if (!('speechSynthesis' in window)) { toast('La lecture à voix haute n\'est pas disponible sur cet appareil.'); return; }
+    taire();
+    var u = new SpeechSynthesisUtterance(txt); u.lang = 'fr-FR'; u.rate = 0.95;
+    var voix = speechSynthesis.getVoices().filter(function (v) { return /^fr/i.test(v.lang); })[0]; if (voix) u.voice = voix;
+    speechSynthesis.speak(u);
+  }
+  function taire() { try { if ('speechSynthesis' in window) speechSynthesis.cancel(); } catch (e) {} }
 
   // =====================================================================
   //  Mémoire des difficultés : état de chaque notion d'après tout l'historique
@@ -1956,7 +2455,11 @@ table.hist tr.alerte td { color: var(--ko); }
         var recentes = t.slice(-10).filter(function (x) { return !x.ok; }).length;
         var jours = (maintenant - new Date(e.dernier).getTime()) / 864e5;
         if (recentes > 0 && e.serie < 3) e.statut = 'revoir';
-        else if (n >= 4 && e.serie >= 3 && e.taux >= 0.8) e.statut = jours > 14 ? 'reviser' : 'maitrise';
+        else if (n >= 4 && e.serie >= 3 && e.taux >= 0.8) {
+          // révision espacée : plus la notion est solide, plus on attend avant de la revoir (3, 10 puis 30 jours)
+          e.intervalle = e.serie >= 7 ? 30 : e.serie >= 5 ? 10 : 3;
+          e.statut = jours > e.intervalle ? 'reviser' : 'maitrise';
+        }
         else e.statut = 'encours';
         // plus la notion est ratée récemment, plus elle est prioritaire
         e.priorite = e.statut === 'revoir' ? 10 + recentes * 3 - e.serie * 2 : e.statut === 'reviser' ? 4 : e.statut === 'encours' ? 3 : 0;
@@ -1965,7 +2468,7 @@ table.hist tr.alerte td { color: var(--ko); }
     });
     return res;
   }
-  var LIB = { nouveau: ['Pas encore vue', ''], revoir: ['À retravailler', 'a'], encours: ['En progrès', 'e'], maitrise: ['Maîtrisée', 'm'], reviser: ['À réviser (vue il y a longtemps)', 'e'] };
+  var LIB = { nouveau: ['Pas encore vue', ''], revoir: ['À retravailler', 'a'], encours: ['En progrès', 'e'], maitrise: ['Maîtrisée', 'm'], reviser: ['À réviser (révision espacée)', 'e'] };
   var ICO = { nouveau: '○', revoir: '✗', encours: '◐', maitrise: '✓', reviser: '↻' };
 
   // Tirage pondéré sans dépasser 2 questions par notion
@@ -1989,8 +2492,20 @@ table.hist tr.alerte td { color: var(--ko); }
     'frac-addition': 2, 'frac-decimal': 2, 'quatrieme-prop': 2, codage: 2, diagonales: 3, reperage: 2, vitesse: 3, 'conv-durees': 2, 'conv-volumes': 2,
     developper: 2, 'double-distrib': 2, factoriser: 2, divisibilite: 3, scratch: 0.5, 'graphique-temps': 3, diagramme: 2, 'diagramme-circulaire': 2, thales: 2,
     angles: 3, aires: 2, perimetres: 2, volumes: 2, image: 2, 'translation-motifs': 2, 'frac-quantite': 2, 'pourcent-de': 2, moyenne: 2, relatifs: 2 };
-  function composer(mode, theme) {
+  // Épreuves calquées sur les vrais sujets : mêmes notions, dans le même ordre, avec des nombres nouveaux
+  var SUJETS_2026 = [
+    { id: 'metropole', nom: 'Métropole (juin 2026)', notions: ['frac-decimal', 'relatifs', 'quatrieme-prop', 'urne', 'equation-1', 'notation-sci', 'diagramme-circulaire', 'perimetres', 'cosinus'] },
+    { id: 'amerique', nom: 'Amérique du Nord (2026)', notions: ['frac-addition', 'pourcent-evolution', 'diagonales', 'equation-1', 'reperage', 'mediane', 'cosinus', 'divisibilite'] },
+    { id: 'etrangers', nom: 'Centres étrangers (2026)', notions: ['mediane', 'translation-motifs', 'urne', 'cosinus', 'notation-sci', 'vitesse', 'factoriser', 'pourcent-evolution', 'graphique-temps'] },
+    { id: 'polynesie', nom: 'Polynésie (juin 2026)', notions: ['mediane', 'notation-sci', 'aires', 'urne', 'pourcent-evolution', 'developper', 'conv-volumes', 'image', 'diagonales'] },
+    { id: 'asie', nom: 'Asie (juin 2026)', notions: ['notation-sci', 'double-distrib', 'volumes', 'divisibilite', 'vitesse', 'urne', 'pourcent-evolution', 'angles', 'diagramme'] },
+    { id: 'zeroA', nom: 'Sujet zéro A (ministère)', notions: ['frac-quantite', 'conv-durees', 'mediane', 'droite-graduee', 'angles', 'cosinus', 'thales', 'pourcent-de', 'scratch'] },
+    { id: 'zeroB', nom: 'Sujet zéro B (ministère)', notions: ['vocab-angles', 'moyenne', 'pourcent-de', 'graphique-temps', 'vitesse', 'perimetres', 'equation-calcul', 'thales', 'programme-calcul'] }
+  ];
+  function composer(mode, theme, sujet) {
     var et = etatNotions(), G = E.GENERATEURS, liste = [];
+    var modele = SUJETS_2026.filter(function (x) { return x.id === sujet; })[0];
+    if (modele) return modele.notions.map(function (id) { return E.creer(NOTION[id]); });
     if (mode === 'epreuve') {
       // format des sujets zéro 2026 : 6 questions à 0,5 point puis 3 questions à 1 point,
       // uniquement des notions de la liste officielle, en variant les thèmes
@@ -2016,16 +2531,71 @@ table.hist tr.alerte td { color: var(--ko); }
       var dif = G.filter(function (g) { return et[g.id].statut === 'revoir'; });
       liste = tirer(dif, function (g) { return et[g.id].priorite; }, 10);
       if (liste.length < 10) liste = liste.concat(tirer(G.filter(function (g) { return et[g.id].statut === 'encours' || et[g.id].statut === 'reviser'; }), function () { return 1; }, 10 - liste.length));
-    } else { // entraînement du jour : 6 difficultés, puis nouveautés et révisions, puis hasard
+    } else { // entraînement du jour : notions vues en classe, 6 difficultés, puis nouveautés et révisions, puis hasard
       var compte = {};
+      var classe = (D().reglages.enClasse || []).filter(function (id) { return NOTION[id]; }).map(function (id) { return NOTION[id]; });
+      if (classe.length) liste = tirer(classe, function (g) { return 1 + et[g.id].priorite; }, Math.min(4, classe.length * 2), compte);
       var revoir = G.filter(function (g) { return et[g.id].statut === 'revoir'; });
-      liste = tirer(revoir, function (g) { return et[g.id].priorite; }, 6, compte);
+      liste = liste.concat(tirer(revoir, function (g) { return et[g.id].priorite; }, Math.max(0, 6 - liste.length), compte));
       var autres = G.filter(function (g) { return et[g.id].statut !== 'revoir' && et[g.id].statut !== 'maitrise'; });
       liste = liste.concat(tirer(autres, function (g) { return (1 + et[g.id].priorite) * (g.hors ? 0.3 : 1); }, 8 - liste.length, compte));
       liste = liste.concat(tirer(G, function (g) { return (et[g.id].statut === 'maitrise' ? 0.5 : 1) * (g.hors ? 0.3 : 1); }, 10 - liste.length, compte));
       liste = E.shuffle(liste);
     }
-    return liste.map(function (g) { return E.creer(g); });
+    return liste.map(function (g) { return E.creerNiveau(g, niveauPour(et[g.id])); });
+  }
+  // Niveau de difficulté adapté : facile pour une notion nouvelle ou ratée, exigeant pour une notion maîtrisée
+  function niveauPour(e) { return !e || e.statut === 'nouveau' || e.statut === 'revoir' ? 1 : e.statut === 'encours' ? 2 : 3; }
+
+  // =====================================================================
+  //  Motivation : semaine, série de jours, note estimée, badges
+  // =====================================================================
+  function joursAvecSeance() { var j = {}; D().seances.forEach(function (s) { j[jourLocal(s.debut)] = 1; }); return j; }
+  function jourLocal(iso) { var d = new Date(iso); return d.getFullYear() + '-' + ('0' + (d.getMonth() + 1)).slice(-2) + '-' + ('0' + d.getDate()).slice(-2); }
+  // jours consécutifs avec au moins une séance (jusqu'à aujourd'hui, ou hier si rien encore aujourd'hui)
+  function serieJours() {
+    var j = joursAvecSeance(), d = new Date(), n = 0;
+    if (!j[jourLocal(d.toISOString())]) d.setDate(d.getDate() - 1);
+    while (j[jourLocal(d.toISOString())]) { n++; d.setDate(d.getDate() - 1); }
+    return n;
+  }
+  function meilleureSerie() {
+    var jours = Object.keys(joursAvecSeance()).sort(), best = 0, cur = 0, prec = null;
+    jours.forEach(function (k) { var t = new Date(k + 'T12:00:00').getTime(); cur = prec && Math.round((t - prec) / 864e5) === 1 ? cur + 1 : 1; best = Math.max(best, cur); prec = t; });
+    return best;
+  }
+  function debutSemaine(d) { d = new Date(d); var j = (d.getDay() + 6) % 7; d.setHours(0, 0, 0, 0); d.setDate(d.getDate() - j); return d; }
+  function seancesSemaine() { var lundi = debutSemaine(new Date()).getTime(); return D().seances.filter(function (s) { return new Date(s.debut).getTime() >= lundi; }); }
+  function objectifHebdo() { return +D().reglages.objectifHebdo || 5; }
+
+  // Note estimée sur 6 à la partie automatismes : réussite récente sur chaque notion officielle,
+  // pondérée par sa fréquence dans les sujets 2026 (une notion jamais travaillée compte pour 40 %)
+  function noteEstimee(avant) {
+    var h = {}, lim = avant ? new Date(avant).getTime() : Infinity;
+    D().seances.forEach(function (s) { if (new Date(s.debut).getTime() < lim) (s.rep || []).forEach(function (r) { (h[r.g] = h[r.g] || []).push(r.ok); }); });
+    var tot = 0, som = 0;
+    E.GENERATEURS.forEach(function (g) {
+      if (g.hors) return;
+      var w = FREQ_BREVET[g.id] || 1, t = (h[g.id] || []).slice(-5);
+      var p = t.length ? t.filter(Boolean).length / t.length : 0.4;
+      tot += w; som += w * p;
+    });
+    return Math.round(som / tot * 60) / 10;
+  }
+  function badges() {
+    var ss = D().seances, et = etatNotions(), ep = ss.filter(function (s) { return s.mode === 'epreuve'; }), best = meilleureSerie();
+    var notes = ep.map(sur6De), max = notes.length ? Math.max.apply(null, notes) : 0;
+    var liste = [
+      ['🌱', 'Première séance', ss.length >= 1], ['📘', '10 séances', ss.length >= 10], ['📚', '50 séances', ss.length >= 50], ['🏛️', '100 séances', ss.length >= 100],
+      ['🔥', '3 jours de suite', best >= 3], ['🔥', '7 jours de suite', best >= 7], ['🌋', '30 jours de suite', best >= 30],
+      ['⏱️', 'Première épreuve blanche', ep.length >= 1], ['🎯', 'Épreuve à 4/6 ou plus', max >= 4], ['🏆', 'Épreuve parfaite 6/6', max >= 6],
+      ['🧭', 'Toutes les notions essayées', E.GENERATEURS.every(function (g) { return et[g.id].n > 0; })]
+    ];
+    E.THEMES.forEach(function (t) {
+      var ns = E.GENERATEURS.filter(function (g) { return g.theme === t.id; });
+      liste.push([t.icone, 'Thème maîtrisé : ' + t.nom, ns.every(function (g) { return et[g.id].statut === 'maitrise' || et[g.id].statut === 'reviser'; })]);
+    });
+    return liste;
   }
 
   // =====================================================================
@@ -2092,6 +2662,11 @@ table.hist tr.alerte td { color: var(--ko); }
       (jours > 0 ? 'Brevet dans <b>' + jours + ' jours</b> (date indicative, modifiable dans les réglages). ' : '') +
       maitrisees + ' notion(s) maîtrisée(s) sur ' + E.GENERATEURS.length + '.' +
       (aujourdhui.length ? ' Déjà ' + aujourdhui.length + ' séance(s) aujourd\'hui, bravo !' : '') + '</p>';
+    var nbSem = seancesSemaine().length, obj = objectifHebdo(), serie = serieJours();
+    html += '<div class="carte semaine"><div class="sem-bloc"><div class="note">Objectif de la semaine</div><div class="sem-v">' + Math.min(nbSem, obj) + ' / ' + obj + ' séances' + (nbSem >= obj ? ' ✅' : '') + '</div>' +
+      '<div class="rail"><div style="width:' + Math.min(100, Math.round(nbSem / obj * 100)) + '%"></div></div></div>' +
+      '<div class="sem-bloc"><div class="note">Série</div><div class="sem-v">' + (serie ? '🔥 ' + serie + ' jour' + (serie > 1 ? 's' : '') + ' de suite' : 'À lancer aujourd\'hui !') + '</div></div>' +
+      '<div class="sem-bloc"><div class="note">Note estimée (automatismes)</div><div class="sem-v">' + E.f(noteEstimee()) + ' / 6</div></div></div>';
 
     if (S.web && S.etat.statut === 'local') {
       html += '<div class="carte" style="border-color:var(--att)"><b>Progression non partagée</b><p class="note" style="margin:4px 0 0">Cet appareil n\'accède pas à la progression en ligne' + (S.google ? '' : ' (connexion internet ou compte claude.ai)') + '. Les séances sont gardées ici et seront envoyées dès que la connexion revient.</p></div>';
@@ -2106,6 +2681,7 @@ table.hist tr.alerte td { color: var(--ko); }
     html += '<div class="grille">' +
       tuile('jour', '🎯', 'Entraînement du jour', '10 questions choisies selon ses difficultés') +
       tuile('epreuve', '⏱️', 'Épreuve blanche', '9 questions · 20 minutes · format des sujets officiels') +
+      tuile('sujet', '📄', 'Sujets du brevet 2026', 'Mêmes questions que les vrais sujets, nombres renouvelés') +
       tuile('difficultes', '🔁', 'Revoir mes difficultés', revoir.length ? revoir.length + ' notion(s) à retravailler' : 'Aucune difficulté en cours 🎉') +
       tuile('theme', '📚', 'Travailler un thème', 'Choisir un chapitre précis') + '</div>';
 
@@ -2133,9 +2709,14 @@ table.hist tr.alerte td { color: var(--ko); }
   function configurer(mode) {
     vueCourante = 'config';
     var dernier = 'ecran'; try { dernier = localStorage.getItem('mathos.repondre') || 'ecran'; } catch (e) {}
-    var titres = { jour: 'Entraînement du jour', epreuve: 'Épreuve blanche', difficultes: 'Revoir mes difficultés', theme: 'Travailler un thème' };
+    var titres = { jour: 'Entraînement du jour', epreuve: 'Épreuve blanche', difficultes: 'Revoir mes difficultés', theme: 'Travailler un thème', sujet: 'Sujets du brevet 2026' };
     var html = '<div class="carte"><h2>' + titres[mode] + '</h2>';
     if (mode === 'epreuve') html += '<p class="note">Format des sujets zéro du ministère : 9 questions sans calculatrice en 20 minutes, 6 questions à 0,5 point puis 3 questions à 1 point (note sur 6). Les corrections sont données à la fin, comme au brevet.</p>';
+    if (mode === 'sujet') {
+      html += '<p class="note">Chaque épreuve reprend, dans le même ordre, les notions d\'un vrai sujet de 2026, avec des nombres nouveaux. 20 minutes, sans calculatrice, note sur 6.</p>' +
+        '<h3>Quel sujet ?</h3><div class="themes-sel">' + SUJETS_2026.map(function (x, i) {
+          return '<button data-sujet="' + x.id + '"' + (i === 0 ? ' class="on"' : '') + '>' + x.nom + ' · ' + x.notions.length + ' q.</button>'; }).join('') + '</div>';
+    }
     if (mode === 'theme') {
       html += '<h3>Quel thème ?</h3><div class="themes-sel">' + E.THEMES.map(function (t, i) {
         return '<button data-theme="' + t.id + '"' + (i === 0 ? ' class="on"' : '') + '>' + t.icone + ' ' + t.nom + '</button>'; }).join('') + '</div>';
@@ -2145,7 +2726,10 @@ table.hist tr.alerte td { color: var(--ko); }
       '<input type="radio" name="rep" id="r-oral" value="oral"' + (dernier === 'oral' ? ' checked' : '') + '><label for="r-oral"><b>🗣️ À l\'oral avec un parent</b><br><small class="note">Le parent lit la question, affiche la réponse et note juste / faux.</small></label></div>' +
       '<div class="ligne-btn"><button class="btn" id="go">Commencer</button><button class="btn sec" data-nav-local="accueil">Retour</button></div></div>';
     $vue.innerHTML = html;
-    var theme = E.THEMES[0].id;
+    var theme = E.THEMES[0].id, sujet = SUJETS_2026[0].id;
+    $vue.querySelectorAll('[data-sujet]').forEach(function (b) {
+      b.onclick = function () { $vue.querySelectorAll('[data-sujet]').forEach(function (x) { x.classList.remove('on'); }); b.classList.add('on'); sujet = b.getAttribute('data-sujet'); };
+    });
     $vue.querySelectorAll('[data-theme]').forEach(function (b) {
       b.onclick = function () { $vue.querySelectorAll('[data-theme]').forEach(function (x) { x.classList.remove('on'); }); b.classList.add('on'); theme = b.getAttribute('data-theme'); };
     });
@@ -2153,16 +2737,17 @@ table.hist tr.alerte td { color: var(--ko); }
     document.getElementById('go').onclick = function () {
       var rep = $vue.querySelector('input[name=rep]:checked').value;
       try { localStorage.setItem('mathos.repondre', rep); } catch (e) {}
-      demarrer(mode, rep, theme);
+      if (mode === 'sujet') demarrer('epreuve', rep, theme, sujet); else demarrer(mode, rep, theme);
     };
   }
 
   // =====================================================================
   //  Séance
   // =====================================================================
-  function demarrer(mode, repondre, theme) {
+  function demarrer(mode, repondre, theme, sujet) {
+    var modele = SUJETS_2026.filter(function (x) { return x.id === sujet; })[0];
     seance = { id: Date.now().toString(36) + Math.random().toString(36).slice(2, 7), mode: mode, repondre: repondre, theme: mode === 'theme' ? theme : '',
-               debut: new Date().toISOString(), qs: composer(mode, theme), i: 0, rep: [], fini: false, t0: Date.now(), tq: Date.now(),
+               sujet: modele ? modele.nom : '', debut: new Date().toISOString(), qs: composer(mode, theme, sujet), i: 0, rep: [], fini: false, t0: Date.now(), tq: Date.now(),
                limite: mode === 'epreuve' ? 20 * 60 : 0 };
     if (seance.limite) {
       minuteur = setInterval(function () {
@@ -2178,13 +2763,21 @@ table.hist tr.alerte td { color: var(--ko); }
     var s = seance, n = s.qs.length, q = s.qs[s.i];
     var reste = s.limite ? s.limite - (Date.now() - s.t0) / 1000 : 0;
     return '<div class="entete-q"><span>Question ' + (s.i + 1) + ' / ' + n + ' · ' + THEME[q.theme].icone + ' ' + esc(q.notion) + '</span>' +
-      (s.limite ? '<span id="chrono" class="chrono">⏱ ' + mmss(reste) + '</span>' : '') + '</div>' +
+      (s.limite ? '<span id="chrono" class="chrono">⏱ ' + mmss(reste) + '</span>' : '') +
+      (s.repondre === 'oral' && !s.limite ? '<span id="chrono-q" class="chrono">⏳ 2:00</span>' : '') + '</div>' +
       '<div class="progress"><div style="width:' + (100 * s.i / n) + '%"></div></div>';
   }
 
   function afficherQuestion() {
     var s = seance, q = s.qs[s.i], oral = s.repondre === 'oral';
     s.tq = Date.now();
+    arreterMinuteurQ(); taire();
+    // à l'oral : environ 2 minutes par question, comme le jour J (indicatif, rien ne se bloque)
+    if (oral && !s.limite) minuteurQ = setInterval(function () {
+      var c = document.getElementById('chrono-q'); if (!c) return arreterMinuteurQ();
+      var reste = 120 - (Date.now() - s.tq) / 1000;
+      c.textContent = reste > 0 ? '⏳ ' + mmss(reste) : '⏳ temps conseillé dépassé'; c.classList.toggle('urgent', reste < 20);
+    }, 1000);
     var html = '<div class="carte' + (oral ? ' oral' : '') + '">' + enteteQuestion() +
       '<div class="enonce">' + q.texte + '</div>' + (q.figure || '');
     if (q.type === 'qcm') {
@@ -2198,6 +2791,8 @@ table.hist tr.alerte td { color: var(--ko); }
         '<p class="aide">' + (q.aide === 'fraction' ? 'Pour une fraction, écrire par exemple 3/4. ' : '') + 'Virgule ou point acceptés, signe moins avec la touche « - ».</p>';
     }
     html += '<div class="ligne-btn">' + (oral ? '<button class="btn sec" id="voir">👁 Afficher la réponse</button>' : '') +
+      ('speechSynthesis' in window ? '<button class="btn sec" id="lire">🔊 Lire la question</button>' : '') +
+      '<button class="btn sec" id="brouillon-bt">✏️ Brouillon</button>' +
       (s.mode === 'epreuve' && !oral ? '<button class="btn sec" id="passer">Passer (je ne sais pas)</button>' : '') + '</div><div id="retour"></div></div>';
     $vue.innerHTML = html;
 
@@ -2213,10 +2808,43 @@ table.hist tr.alerte td { color: var(--ko); }
     $vue.querySelectorAll('[data-c]').forEach(function (b) {
       b.onclick = function () { if (!b.disabled) repondre(+b.getAttribute('data-c')); };
     });
+    document.getElementById('brouillon-bt').onclick = function () { brouillon(this); };
+    var lireBt = document.getElementById('lire');
+    if (lireBt) lireBt.onclick = function () {
+      lire(texteOral(q.texte) + (q.type === 'qcm' ? '. ' + q.choix.map(function (c, k) { return 'Réponse ' + LETTRES[k] + ' : ' + texteOral(c); }).join('. ') : ''));
+    };
     var voir = document.getElementById('voir');
     if (voir) voir.onclick = reveleOral;
     var passer = document.getElementById('passer');
     if (passer) passer.onclick = function () { repondre(null); };
+  }
+
+  // Brouillon : une zone pour poser un calcul au doigt ou à la souris, comme la feuille de brouillon du jour J
+  function brouillon(bouton) {
+    var ex = document.getElementById('brouillon');
+    if (ex) { ex.remove(); return; }
+    var z = document.createElement('div');
+    z.id = 'brouillon'; z.className = 'brouillon';
+    z.innerHTML = '<canvas></canvas><div class="ligne-btn"><button class="btn sec" data-b="effacer">Effacer</button><button class="btn sec" data-b="fermer">Fermer le brouillon</button></div>';
+    bouton.closest('.ligne-btn').after(z);
+    var c = z.querySelector('canvas'), ctx = c.getContext('2d'), ratio = window.devicePixelRatio || 1;
+    c.width = c.clientWidth * ratio; c.height = c.clientHeight * ratio; ctx.scale(ratio, ratio);
+    ctx.lineWidth = 2.5; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+    ctx.strokeStyle = getComputedStyle(document.documentElement).getPropertyValue('--encre').trim() || '#222';
+    var actif = false;
+    function pos(e) { var r = c.getBoundingClientRect(); return [e.clientX - r.left, e.clientY - r.top]; }
+    c.addEventListener('pointerdown', function (e) { actif = true; c.setPointerCapture(e.pointerId); var p = pos(e); ctx.beginPath(); ctx.moveTo(p[0], p[1]); e.preventDefault(); });
+    c.addEventListener('pointermove', function (e) { if (!actif) return; var p = pos(e); ctx.lineTo(p[0], p[1]); ctx.stroke(); e.preventDefault(); });
+    ['pointerup', 'pointercancel', 'pointerleave'].forEach(function (t) { c.addEventListener(t, function () { actif = false; }); });
+    z.querySelector('[data-b=effacer]').onclick = function () { ctx.clearRect(0, 0, c.width, c.height); };
+    z.querySelector('[data-b=fermer]').onclick = function () { z.remove(); };
+  }
+
+  // Fiche méthode d'une notion (règle, exemple résolu, piège classique), repliable
+  function ficheHTML(id) {
+    var f = window.FICHES && window.FICHES[id];
+    if (!f) return '';
+    return '<details class="fiche"><summary>📖 La méthode</summary><p><b>À retenir :</b> ' + f.regle + '</p><p><b>Exemple :</b> ' + f.exemple + '</p><p><b>⚠️ Piège :</b> ' + f.piege + '</p></details>';
   }
 
   function texteReponse(q, rep) {
@@ -2230,7 +2858,7 @@ table.hist tr.alerte td { color: var(--ko); }
     var ok = okManuel !== undefined ? okManuel : (rep !== null && E.verifier(q, rep));
     var diag = (!ok && rep !== null && rep !== undefined) ? E.diagnostiquer(q, rep) : '';
     s.rep[s.i] = { g: q.gen, t: q.theme, ok: ok, r: rep === null || rep === undefined ? '' : (q.type === 'qcm' ? LETTRES[rep] + '. ' + q.choix[rep] : esc(String(rep))),
-                   q: q.texte, br: q.reponse, d: diag, ms: Date.now() - s.tq, p: q.pts };
+                   q: q.texte, br: q.reponse, d: diag, ms: Date.now() - s.tq, p: q.pts, n: q.notion };
     if (s.mode === 'epreuve' && s.repondre === 'ecran') return suivante();
     afficherRetour(q, rep, ok, diag);
   }
@@ -2252,13 +2880,13 @@ table.hist tr.alerte td { color: var(--ko); }
       else html += '<p>Bonne réponse : <b>' + q.reponse + '</b></p>';
       if (diag) html += '<p>🔎 <b>Ce qui s\'est sans doute passé :</b> ' + diag + '</p>';
     }
-    html += '<p>📝 <b>Correction :</b> ' + q.correction + '</p></div><div class="ligne-btn">';
+    html += '<p>📝 <b>Correction :</b> ' + q.correction + '</p>' + ficheHTML(q.gen) + '</div><div class="ligne-btn">';
     if (!ok && s.mode !== 'epreuve') html += '<button class="btn sec" id="similaire">🔁 Une question du même type</button>';
     html += '<button class="btn" id="suivante">' + (s.i + 1 < s.qs.length ? 'Question suivante →' : 'Voir le bilan') + '</button></div>';
     document.getElementById('retour').innerHTML = html;
     var b = document.getElementById('suivante'); b.focus(); b.onclick = suivante;
     var sim = document.getElementById('similaire');
-    if (sim) sim.onclick = function () { s.qs.splice(s.i + 1, 0, E.creer(NOTION[q.gen])); suivante(); };
+    if (sim) sim.onclick = function () { s.qs.splice(s.i + 1, 0, E.creerNiveau(NOTION[q.gen], 1)); suivante(); };
   }
 
   // Mode oral : le parent affiche la réponse puis note juste / faux
@@ -2266,7 +2894,7 @@ table.hist tr.alerte td { color: var(--ko); }
     var s = seance, q = s.qs[s.i];
     var voir = document.getElementById('voir'); if (voir) voir.remove();
     document.getElementById('retour').innerHTML = '<div class="retour neutre"><div class="titre">Réponse attendue : ' + q.reponse + (q.unite && q.type === 'num' ? ' ' + esc(q.unite) : '') + '</div>' +
-      '<p>📝 ' + q.correction + '</p></div><div class="ligne-btn"><button class="btn ok" id="juste">✓ Elle a juste</button><button class="btn ko" id="faux">✗ Elle s\'est trompée</button></div>' +
+      '<p>📝 ' + q.correction + '</p>' + ficheHTML(q.gen) + '</div><div class="ligne-btn"><button class="btn ok" id="juste">✓ Elle a juste</button><button class="btn ko" id="faux">✗ Elle s\'est trompée</button></div>' +
       '<p class="aide">Astuce : si elle s\'est trompée, tapez sa réponse dans le champ ci-dessus (ou cliquez sa proposition) puis « Vérifier » pour obtenir l\'explication de l\'erreur.</p>';
     document.getElementById('juste').onclick = function () { repondre(null, true); };
     document.getElementById('faux').onclick = function () { repondre(null, false); };
@@ -2291,12 +2919,13 @@ table.hist tr.alerte td { color: var(--ko); }
     // questions non traitées (temps écoulé) : comptées fausses
     for (var i = 0; i < s.qs.length; i++) if (!s.rep[i]) {
       var q = s.qs[i];
-      s.rep[i] = { g: q.gen, t: q.theme, ok: false, r: '', q: q.texte, br: q.reponse, d: 'Non traitée (temps écoulé).', ms: 0, p: q.pts };
+      s.rep[i] = { g: q.gen, t: q.theme, ok: false, r: '', q: q.texte, br: q.reponse, d: 'Non traitée (temps écoulé).', ms: 0, p: q.pts, n: q.notion };
     }
     var score = s.rep.filter(function (r) { return r.ok; }).length;
-    var note = s.mode === 'epreuve' ? s.rep.reduce(function (t, r) { return t + (r.ok ? r.p : 0); }, 0) : undefined;
+    var totalPts = s.rep.reduce(function (t, r) { return t + (r.p || 0); }, 0);
+    var note = s.mode === 'epreuve' && totalPts ? Math.round(s.rep.reduce(function (t, r) { return t + (r.ok ? r.p : 0); }, 0) / totalPts * 60) / 10 : undefined;
     var enreg = { id: s.id, debut: s.debut, fin: new Date().toISOString(), duree: Math.round((Date.now() - s.t0) / 1000), poste: poste() || (S.appareil ? S.appareil() : 'Mac'),
-                  mode: s.mode, repondre: s.repondre, theme: s.theme, score: score, note: note, total: s.rep.length, rep: s.rep };
+                  mode: s.mode, repondre: s.repondre, theme: s.theme, sujet: s.sujet || undefined, score: score, note: note, total: s.rep.length, rep: s.rep };
     if (!modeEssai()) S.ajouterSeance(enreg);
     bilan(enreg, s.qs);
   }
@@ -2315,7 +2944,7 @@ table.hist tr.alerte td { color: var(--ko); }
       var q = qs[i];
       html += '<div class="erreur-item' + (r.ok ? ' juste' : '') + '"><div class="q">' + (i + 1) + '. ' + (r.ok ? '✓ ' : '✗ ') + q.texte + (enr.mode === 'epreuve' && r.p ? ' <span class="note">(' + E.f(r.p) + ' pt)</span>' : '') + '</div>' + (q.figure || '') +
         (r.ok ? '' : (r.r ? '<div>Réponse donnée : ' + r.r + '</div>' : '') + '<div>Bonne réponse : <b>' + q.reponse + '</b></div>' +
-          (r.d ? '<div>🔎 ' + r.d + '</div>' : '') + '<div class="note">📝 ' + q.correction + '</div>') + '</div>';
+          (r.d ? '<div>🔎 ' + r.d + '</div>' : '') + '<div class="note">📝 ' + q.correction + '</div>' + ficheHTML(q.gen)) + '</div>';
     });
     html += '<div class="ligne-btn">' + (fausses.length ? '<button class="btn" id="refaire">🔁 Retravailler ces erreurs</button>' : '') +
       '<button class="btn sec" id="accueil">Retour à l\'accueil</button></div></div>';
@@ -2326,7 +2955,7 @@ table.hist tr.alerte td { color: var(--ko); }
     if (rf) rf.onclick = function () {
       var rep = enr.repondre, ids = fausses.map(function (r) { return r.g; });
       // deux nouvelles questions par notion ratée
-      var qs2 = []; ids.forEach(function (g) { qs2.push(E.creer(NOTION[g]), E.creer(NOTION[g])); });
+      var qs2 = []; ids.forEach(function (g) { qs2.push(E.creerNiveau(NOTION[g], 1), E.creer(NOTION[g])); });
       seance = null; demarrer('difficultes', rep);
       seance.qs = E.shuffle(qs2).slice(0, 12);
       afficherQuestion();
@@ -2350,7 +2979,22 @@ table.hist tr.alerte td { color: var(--ko); }
     var html = '<h1>Progrès de ' + esc(prenom()) + '</h1><p class="sous">' + (S.web ? 'Données communes à tous les appareils (Mac et téléphone).' : 'Données communes aux 3 Mac' + (S.dossierNom ? ' (dossier Drive « ' + esc(S.dossierNom) + ' »)' : ' — synchro Drive non active sur ce poste') + '.') + '</p>' +
       '<div class="kpis">' +
       kpi(toutes.length, 'questions travaillées') + kpi(taux(toutes), 'réussite globale') + kpi(taux(sem), 'réussite sur 7 jours') +
-      kpi(Object.keys(jours).length, 'jours d\'entraînement') + kpi(nbM + ' / ' + E.GENERATEURS.length, 'notions maîtrisées') + kpi(nbR, 'notions à retravailler') + '</div>';
+      kpi(Object.keys(jours).length, 'jours d\'entraînement') + kpi(nbM + ' / ' + E.GENERATEURS.length, 'notions maîtrisées') + kpi(nbR, 'notions à retravailler') +
+      kpi(E.f(noteEstimee()) + ' / 6', 'note estimée au brevet') + kpi(meilleureSerie() + ' j', 'meilleure série') + '</div>';
+    // Bilan de la semaine en cours
+    var sem = seancesSemaine(), repSem = []; sem.forEach(function (s) { repSem = repSem.concat(s.rep || []); });
+    var tempsSem = sem.reduce(function (t, s) { return t + (s.duree || 0); }, 0);
+    html += '<div class="carte"><h2>Cette semaine</h2><p>' + sem.length + ' séance(s) sur un objectif de ' + objectifHebdo() + ', ' + Math.round(tempsSem / 60) + ' min de travail, ' +
+      repSem.length + ' questions dont ' + taux(repSem) + ' réussies.</p>' +
+      (function () {
+        var et2 = etatNotions(), frag = Object.keys(et2).map(function (k) { return et2[k]; }).filter(function (e) { return e.statut === 'revoir'; }).slice(0, 5);
+        return frag.length ? '<p class="note">À travailler en priorité : ' + frag.map(function (e) { return esc(e.nom); }).join(', ') + '.</p>' : '<p class="note">Aucune notion en difficulté pour l\'instant.</p>';
+      })() + '</div>';
+    // Évolution de la note estimée, semaine après semaine
+    html += '<div class="carte"><h2>Note estimée au brevet (partie automatismes)</h2><p class="note">Estimation sur 6 d\'après la réussite récente sur chaque notion, pondérée par sa fréquence dans les sujets 2026. Une notion jamais travaillée compte pour 40 %.</p><div class="graph" id="graph-note"></div></div>';
+    // Badges
+    html += '<div class="carte"><h2>Badges</h2><div class="badges">' + badges().map(function (b) {
+      return '<div class="badge' + (b[2] ? ' obtenu' : '') + '" title="' + esc(b[1]) + '"><span class="b-ico">' + b[0] + '</span><span>' + esc(b[1]) + '</span></div>'; }).join('') + '</div></div>';
 
     // Courbe des épreuves blanches
     html += '<div class="carte"><h2>Épreuves blanches (note sur 6)</h2>' +
@@ -2373,6 +3017,7 @@ table.hist tr.alerte td { color: var(--ko); }
     if (!dif.length) html += '<p class="note">Aucune notion en difficulté pour le moment.</p>';
     dif.forEach(function (e) {
       html += '<h3>' + THEME[e.theme].icone + ' ' + esc(e.nom) + ' <span class="niveau a">— ' + e.serie + '/3 bonnes réponses d\'affilée pour la valider</span></h3>';
+      html += ficheHTML(e.id);
       e.erreurs.slice(0, 3).forEach(function (x) {
         html += '<div class="erreur-item"><div class="q">' + x.r.q + '</div><div class="note">' + dateCourte(x.date) +
           (x.r.r ? ' · réponse donnée : ' + x.r.r : '') + ' · attendu : <b>' + x.r.br + '</b></div>' +
@@ -2396,17 +3041,28 @@ table.hist tr.alerte td { color: var(--ko); }
     html += '<div class="carte"><h2>Historique des séances</h2><div class="hist-wrap"><table class="hist"><tr><th>Date</th><th>Séance</th><th>Réponses</th><th>Score</th><th>Poste</th></tr>';
     var NOMS = { jour: 'Entraînement du jour', epreuve: 'Épreuve blanche', difficultes: 'Difficultés', theme: 'Thème' };
     ss.slice().reverse().slice(0, 40).forEach(function (s) {
-      html += '<tr><td>' + dateCourte(s.debut) + '</td><td>' + NOMS[s.mode] + (s.theme ? ' · ' + THEME[s.theme].nom : '') + '</td><td>' + (s.repondre === 'oral' ? '🗣️ oral' : '💻 écran') +
+      html += '<tr><td>' + dateCourte(s.debut) + '</td><td>' + NOMS[s.mode] + (s.sujet ? ' · ' + esc(s.sujet) : '') + (s.theme ? ' · ' + THEME[s.theme].nom : '') + '</td><td>' + (s.repondre === 'oral' ? '🗣️ oral' : '💻 écran') +
         '</td><td>' + s.score + '/' + s.total + (s.mode === 'epreuve' ? ' (' + E.f(sur6De(s)) + '/6)' : '') + '</td><td>' + esc(s.poste || '') + '</td></tr>';
     });
     html += '</table></div>' + (ss.length ? '' : '<p class="note">Aucune séance pour l\'instant.</p>') + '</div>';
     $vue.innerHTML = html;
     if (epreuves.length) courbe(document.getElementById('graph'), epreuves);
+    courbeNote(document.getElementById('graph-note'));
     var td = document.getElementById('travDif');
     if (td) td.onclick = function () { configurer('difficultes'); };
   }
   // Note sur 6 : barème par question (0,5 ou 1 point) ; anciennes séances : proportionnelle
   function sur6De(s) { return s.note !== undefined ? s.note : Math.round(s.score / s.total * 60) / 10; }
+  // Note estimée en fin de chaque semaine depuis la première séance
+  function courbeNote(el) {
+    var ss = D().seances;
+    if (!el) return;
+    if (!ss.length) { el.innerHTML = '<p class="note">La courbe apparaîtra après les premières séances.</p>'; return; }
+    var pts = [], d = debutSemaine(ss[0].debut), fin = Date.now();
+    while (d.getTime() <= fin) { var f = new Date(d.getTime() + 7 * 864e5); pts.push({ debut: new Date(Math.min(f.getTime(), fin)).toISOString(), note: noteEstimee(Math.min(f.getTime(), fin + 1)) }); d = f; }
+    pts = pts.slice(-26);
+    courbe(el, pts.map(function (p) { return { debut: p.debut, note: p.note, estimation: true }; }));
+  }
   function kpi(v, t) { return '<div class="kpi"><div class="v">' + v + '</div><div class="t">' + t + '</div></div>'; }
 
   // Courbe simple (une série) avec info-bulle au survol
@@ -2427,7 +3083,7 @@ table.hist tr.alerte td { color: var(--ko); }
       var r = svgEl.getBoundingClientRect(), x = (e.clientX - r.left) * W / r.width, best = pts[0];
       pts.forEach(function (p) { if (Math.abs(p.x - x) < Math.abs(best.x - x)) best = p; });
       bulle.style.display = 'block'; bulle.style.left = (e.clientX + 12) + 'px'; bulle.style.top = (e.clientY - 34) + 'px';
-      bulle.textContent = dateCourte(best.s.debut) + ' : ' + E.f(sur6De(best.s)) + ' / 6 (' + best.s.score + '/' + best.s.total + ')';
+      bulle.textContent = dateCourte(best.s.debut) + ' : ' + E.f(sur6De(best.s)) + ' / 6' + (best.s.estimation ? ' (estimation)' : ' (' + best.s.score + '/' + best.s.total + ')');
     });
     zone.addEventListener('mouseleave', function () { bulle.style.display = 'none'; });
   }
@@ -2488,7 +3144,16 @@ table.hist tr.alerte td { color: var(--ko); }
       '<div class="form-ligne"><label>Nom de cet appareil</label><input id="poste" placeholder="ex. MacBook Papa, iMac salon" value="' + esc(poste()) + '">' +
         (S.journal ? '<span class="note">Ce nom apparaît dans le journal des connexions.</span>' : '') + '</div>' +
       '<div class="form-ligne"><label>Date du brevet (indicative)</label><input id="date" type="date" value="' + esc(r.dateBrevet) + '"></div>' +
+      '<div class="form-ligne"><label>Objectif : séances par semaine</label><input id="objectif" type="number" min="1" max="21" value="' + objectifHebdo() + '"></div>' +
       '<div class="ligne-btn"><button class="btn" id="enreg">Enregistrer</button></div></div>' +
+      '<div class="carte"><h2>Notions vues en classe en ce moment</h2><p class="note">Cochez les notions travaillées au collège ces jours-ci : l\'entraînement du jour en proposera en priorité (jusqu\'à 4 questions sur 10).</p>' +
+        E.THEMES.map(function (t) {
+          var ns = E.GENERATEURS.filter(function (g) { return g.theme === t.id; }), sel = r.enClasse || [];
+          var nb = ns.filter(function (g) { return sel.indexOf(g.id) >= 0; }).length;
+          return '<details class="classe"><summary>' + t.icone + ' ' + t.nom + (nb ? ' <b>(' + nb + ')</b>' : '') + '</summary>' + ns.map(function (g) {
+            return '<label class="coche"><input type="checkbox" data-classe="' + g.id + '"' + (sel.indexOf(g.id) >= 0 ? ' checked' : '') + '> ' + esc(g.nom) + '</label>'; }).join('') + '</details>';
+        }).join('') +
+        '<div class="ligne-btn"><button class="btn" id="classe-ok">Enregistrer ces notions</button><button class="btn sec" id="classe-raz">Tout décocher</button></div></div>' +
       (S.journal ? '<div class="carte"><h2>Journal des connexions</h2><p class="note">Qui a ouvert MathOS et quand, sur quel appareil, et ce qui a été fait. Les tentatives avec un mauvais code apparaissent en rouge.</p><div id="journal" class="hist-wrap"><p class="note">Chargement…</p></div></div>' : '') +
       '<div class="carte"><h2>Tests et remise à zéro</h2>' +
       '<div class="form-ligne"><label for="essai">Mode essai sur ' + (S.web ? 'cet appareil' : 'ce Mac') + '</label><input type="checkbox" id="essai"' + (modeEssai() ? ' checked' : '') + '><span class="note">Les séances faites ici ne sont pas enregistrées (pratique pour tester l\'app).</span></div>' +
@@ -2508,7 +3173,7 @@ table.hist tr.alerte td { color: var(--ko); }
       '<h3>Transfert manuel (secours)</h3><div class="ligne-btn"><button class="btn sec" id="exp">Exporter la progression</button><label class="btn sec" style="display:inline-block">Importer un fichier<input type="file" id="imp" accept=".json" class="cache"></label></div></div>');
     document.getElementById('enreg').onclick = function () {
       try { localStorage.setItem('mathos.poste', document.getElementById('poste').value.trim()); } catch (e) {}
-      S.majReglages({ prenom: document.getElementById('prenom').value.trim(), dateBrevet: document.getElementById('date').value || '2027-06-24' });
+      S.majReglages({ prenom: document.getElementById('prenom').value.trim(), dateBrevet: document.getElementById('date').value || '2027-06-24', objectifHebdo: Math.min(21, Math.max(1, +document.getElementById('objectif').value || 5)) });
       toast('Réglages enregistrés.');
     };
     document.getElementById('essai').onchange = function (e) {
@@ -2527,6 +3192,11 @@ table.hist tr.alerte td { color: var(--ko); }
       });
     };
     if (S.journal) afficherJournal(50);
+    function notionsClasse() { return [].slice.call(document.querySelectorAll('[data-classe]:checked')).map(function (c) { return c.getAttribute('data-classe'); }); }
+    document.getElementById('classe-ok').onclick = function () {
+      var ids = notionsClasse(); S.majReglages({ enClasse: ids }); toast(ids.length ? ids.length + ' notion(s) vue(s) en classe enregistrée(s).' : 'Aucune notion cochée.');
+    };
+    document.getElementById('classe-raz').onclick = function () { document.querySelectorAll('[data-classe]').forEach(function (c) { c.checked = false; }); };
     var ch = document.getElementById('choisir'); if (ch) ch.onclick = function () { S.connecter(true).then(function () { aller('reglages'); }); };
     var sn = document.getElementById('syncnow'); if (sn) sn.onclick = function () { S.synchroniser().then(function () { aller('reglages'); }); };
     if (document.getElementById('exp')) document.getElementById('exp').onclick = function () {
