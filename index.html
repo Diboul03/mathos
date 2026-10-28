@@ -2563,9 +2563,42 @@ window.FICHES = {
     }
     return E.creerNiveau(g, niveau);
   }
+  // Sujets types inventés : même plan que les sujets 2026 (une question par « case », dans cet ordre),
+  // les notions de chaque case étant tirées selon leur fréquence dans les vrais sujets.
+  var PLAN_SUJET = [
+    { nom: 'Nombres et fractions', notions: { 'frac-decimal': 3, 'frac-addition': 3, 'frac-quantite': 2, relatifs: 2, decimaux: 1, carres: 1, 'comparer-decimaux': 1, 'droite-graduee': 1, 'ecritures-nombre': 1, 'frac-simplifier': 1 } },
+    { nom: 'Puissances et divisibilité', notions: { 'notation-sci': 5, divisibilite: 2, 'puiss-entier': 1, 'expressions-n': 1 } },
+    { nom: 'Statistiques', notions: { mediane: 5, moyenne: 2, diagramme: 2, 'diagramme-circulaire': 2, frequence: 1 } },
+    { nom: 'Probabilités', notions: { urne: 5, de: 2 } },
+    { nom: 'Pourcentages et proportionnalité', notions: { 'pourcent-evolution': 5, 'pourcent-de': 2, 'quatrieme-prop': 2, 'coef-multiplicateur': 1, 'proportionnel-tableau': 1 } },
+    { nom: 'Calcul littéral et équations', notions: { 'equation-1': 4, developper: 2, 'double-distrib': 2, factoriser: 2, substitution: 1, 'equation-calcul': 1, image: 2, 'programme-calcul': 1 } },
+    { nom: 'Géométrie : longueurs et angles', notions: { cosinus: 5, thales: 2, pythagore: 2, angles: 2 } },
+    { nom: 'Géométrie : figures', notions: { diagonales: 3, codage: 2, aires: 2, perimetres: 2, volumes: 2, 'translation-motifs': 2, reperage: 2, solides: 1, 'vocab-angles': 1 } },
+    { nom: 'Grandeurs, graphiques, algorithmes', notions: { vitesse: 3, 'graphique-temps': 3, 'conv-volumes': 2, 'conv-durees': 2, 'conv-masses': 1, 'lecture-graphique': 1, scratch: 1 } }
+  ];
+  var NB_SUJETS_TYPES = 30;
+  function hasardGraine(n) { var a = n * 2654435761 >>> 0; return function () { a = (a + 0x6D2B79F5) >>> 0; var t = a; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }
+  function sujetType(n, nom) {
+    var r = hasardGraine(n), notions = [];
+    var cases = n % 5 === 0 ? PLAN_SUJET.slice(0, 8) : PLAN_SUJET;   // certains sujets n'ont que 8 questions, comme en Amérique du Nord
+    cases.forEach(function (c) {
+      var cand = Object.keys(c.notions).filter(function (id) { return NOTION[id] && notions.indexOf(id) < 0; });
+      var tot = cand.reduce(function (t, id) { return t + c.notions[id]; }, 0), x = r() * tot;
+      for (var i = 0; i < cand.length; i++) { x -= c.notions[cand[i]]; if (x <= 0 || i === cand.length - 1) { notions.push(cand[i]); break; } }
+    });
+    return { id: 'type' + n, nom: nom || 'Sujet type n°' + n, notions: notions };
+  }
+  function trouverSujet(id) {
+    if (!id) return null;
+    var m = SUJETS_2026.filter(function (x) { return x.id === id; })[0];
+    if (m) return m;
+    if (id === 'hasard') return sujetType(1000 + Math.floor(Math.random() * 1e6), 'Sujet inventé (au hasard)');
+    var t = /^type(\d+)$/.exec(id);
+    return t ? sujetType(+t[1]) : null;
+  }
   function composer(mode, theme, sujet, format) {
     var et = etatNotions(), G = E.GENERATEURS, liste = [];
-    var modele = SUJETS_2026.filter(function (x) { return x.id === sujet; })[0];
+    var modele = typeof sujet === 'object' ? sujet : trouverSujet(sujet);
     if (modele) return modele.notions.map(function (id) { return E.creer(NOTION[id], false); });
     if (mode === 'epreuve') {
       // format des sujets zéro 2026 : 6 questions à 0,5 point puis 3 questions à 1 point,
@@ -2742,7 +2775,7 @@ window.FICHES = {
     html += '<div class="grille">' +
       tuile('jour', '🎯', 'Entraînement du jour', '10 questions choisies selon ses difficultés') +
       tuile('epreuve', '⏱️', 'Épreuve blanche', '9 questions · 20 minutes · format des sujets officiels') +
-      tuile('sujet', '📄', 'Sujets du brevet 2026', 'Mêmes questions que les vrais sujets, nombres renouvelés') +
+      tuile('sujet', '📄', 'Sujets type brevet', '7 vrais sujets 2026 et ' + NB_SUJETS_TYPES + ' sujets inventés sur le même modèle') +
       tuile('difficultes', '🔁', 'Revoir mes difficultés', revoir.length ? revoir.length + ' notion(s) à retravailler' : 'Aucune difficulté en cours 🎉') +
       tuile('theme', '📚', 'Travailler un thème', 'Choisir un chapitre précis') + '</div>';
 
@@ -2771,13 +2804,21 @@ window.FICHES = {
     vueCourante = 'config';
     var dernier = 'ecran', format = 'seule';
     try { dernier = localStorage.getItem('mathos.repondre') || 'ecran'; format = localStorage.getItem('mathos.format') || 'seule'; } catch (e) {}
-    var titres = { jour: 'Entraînement du jour', epreuve: 'Épreuve blanche', difficultes: 'Revoir mes difficultés', theme: 'Travailler un thème', sujet: 'Sujets du brevet 2026' };
+    var titres = { jour: 'Entraînement du jour', epreuve: 'Épreuve blanche', difficultes: 'Revoir mes difficultés', theme: 'Travailler un thème', sujet: 'Sujets type brevet' };
     var html = '<div class="carte"><h2>' + titres[mode] + '</h2>';
     if (mode === 'epreuve') html += '<p class="note">Format des sujets zéro du ministère : 9 questions sans calculatrice en 20 minutes, 6 questions à 0,5 point puis 3 questions à 1 point (note sur 6). Les corrections sont données à la fin, comme au brevet.</p>';
     if (mode === 'sujet') {
-      html += '<p class="note">Chaque épreuve reprend, dans le même ordre, les notions d\'un vrai sujet de 2026, avec des nombres nouveaux. 20 minutes, sans calculatrice, note sur 6.</p>' +
-        '<h3>Quel sujet ?</h3><div class="themes-sel">' + SUJETS_2026.map(function (x, i) {
-          return '<button data-sujet="' + x.id + '"' + (i === 0 ? ' class="on"' : '') + '>' + x.nom + ' · ' + x.notions.length + ' q.</button>'; }).join('') + '</div>';
+      // meilleure note déjà obtenue sur chaque sujet
+      var notesSujet = {}; D().seances.forEach(function (x) { if (x.sujet) notesSujet[x.sujet] = Math.max(notesSujet[x.sujet] || 0, sur6De(x)); });
+      var bouton = function (x, on) {
+        var n = notesSujet[x.nom];
+        return '<button data-sujet="' + x.id + '"' + (on ? ' class="on"' : '') + '>' + x.nom.replace('Sujet type ', '') + (n !== undefined ? ' ✓ ' + E.f(n) + '/6' : '') + '</button>';
+      };
+      var types = []; for (var k = 1; k <= NB_SUJETS_TYPES; k++) types.push(sujetType(k));
+      html += '<p class="note">20 minutes, sans calculatrice, note sur 6. Les nombres changent à chaque fois ; ✓ indique la meilleure note déjà obtenue.</p>' +
+        '<h3>Vrais sujets 2026</h3><p class="note">Mêmes notions que le vrai sujet, dans le même ordre.</p><div class="themes-sel">' + SUJETS_2026.map(function (x, i) { return bouton(x, i === 0); }).join('') + '</div>' +
+        '<h3>Sujets types inventés</h3><p class="note">' + NB_SUJETS_TYPES + ' sujets construits sur le même plan que ceux de 2026 (nombres, puissances, statistiques, probabilités, pourcentages, calcul littéral, deux questions de géométrie, grandeurs), avec d\'autres combinaisons de notions.</p>' +
+        '<div class="themes-sel">' + types.map(function (x) { return bouton(x, false); }).join('') + '<button data-sujet="hasard">🎲 Un sujet au hasard</button></div>';
     }
     if (mode === 'theme') {
       html += '<h3>Quel thème ?</h3><div class="themes-sel">' + E.THEMES.map(function (t, i) {
@@ -2815,9 +2856,9 @@ window.FICHES = {
   //  Séance
   // =====================================================================
   function demarrer(mode, repondre, theme, sujet, format) {
-    var modele = SUJETS_2026.filter(function (x) { return x.id === sujet; })[0];
+    var modele = trouverSujet(sujet);
     format = mode === 'epreuve' ? 'brevet' : (format || 'seule');
-    var qs = composer(mode, theme, sujet, format);
+    var qs = composer(mode, theme, modele, format);
     seance = { id: Date.now().toString(36) + Math.random().toString(36).slice(2, 7), mode: mode, repondre: repondre, theme: mode === 'theme' ? theme : '', format: format,
                sujet: modele ? modele.nom : '', debut: new Date().toISOString(), qs: qs, i: 0, rep: [], fini: false, t0: Date.now(), tq: Date.now(),
                limite: mode === 'epreuve' ? 20 * 60 : format === 'brevet' ? qs.length * 120 : 0 };
