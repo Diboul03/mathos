@@ -1645,6 +1645,7 @@ if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.se
     if (faux.length < 3 && q.valeur !== 0 && !vus[arr(q.valeur * 10)]) faux.push([q.valeur * 10, 'Erreur de virgule ou d\'unité : ce résultat est 10 fois trop grand.']);
     var u = q.unite && ['élèves', 'billes', 'euros', 'pages'].indexOf(q.unite) < 0 ? ' ' + q.unite : '';
     var r = qcm(q.texte, f(q.valeur) + u, faux.map(function (pg) { return [f(pg[0]) + u, pg[1]]; }), q.correction, { figure: q.figure });
+    r.original = q;
     return r;
   }
   function creer(g, formatLibre) {
@@ -1671,6 +1672,42 @@ if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.se
     return q;
   }
 
+  // ---------- Mode « je trouve seule » : aucune proposition de réponse ----------
+  // Questions qui ne peuvent pas se poser sans leurs propositions (« Laquelle de ces… ») : on en tire une autre
+  var BESOIN_CHOIX = /(de ces |signifie que|on effectue le calcul|Quel calcul|ne peut PAS)/i;
+  function creerSansChoix(g, niveau) {
+    for (var essai = 0; essai < 8; essai++) {
+      var q = niveau ? creerNiveau(g, niveau) : creer(g);
+      if (q.original) {   // QCM fabriqué à partir d'une question à réponse chiffrée : on reprend la question d'origine
+        var o = q.original; o.gen = q.gen; o.theme = q.theme; o.notion = q.notion; o.pts = q.pts; if (q.niveau) o.niveau = q.niveau; q = o;
+      }
+      if (q.type === 'num') return q;
+      if (BESOIN_CHOIX.test(q.texte)) continue;
+      // un QCM devient une question à réponse libre : la bonne proposition sert de réponse attendue
+      q.type = 'libre'; q.choixQcm = q.choix; delete q.choix;
+      return q;
+    }
+    return null;
+  }
+  // Comparaison tolérante d'une réponse écrite (expression, nom de figure…) avec la réponse attendue
+  function normaliser(t) {
+    return String(t || '').replace(/<span class="frac"><span>([^<]*)<\/span><span>([^<]*)<\/span><\/span>/g, '($1)/($2)')
+      .replace(/<sup>([^<]*)<\/sup>/g, '^$1').replace(/<[^>]+>/g, '').replace(/&nbsp;| | /g, ' ')
+      .toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')
+      .replace(/²/g, '^2').replace(/³/g, '^3').replace(/[−–]/g, '-').replace(/×/g, '*').replace(/÷/g, '/').replace(/,/g, '.')
+      .replace(/^(c'est |il s'agit d'|il s'agit de |la reponse est )/, '').replace(/^(un |une |le |la |l'|les |son |sa |ses )/, '')
+      .replace(/\s+/g, '').replace(/\((\w+)\)\/\((\w+)\)/g, '$1/$2').replace(/\*?10\^/g, '*10^').replace(/cm\^?2|cm\^?3|cm|°/g, function (u) { return u; });
+  }
+  function verifierLibre(q, rep) {
+    var a = normaliser(rep), b = normaliser(q.reponse).replace(/^(un|une|le|la|l'|les|son|sa|ses)(?=[a-z])/, '');
+    a = a.replace(/^(un|une|le|la|l'|les|son|sa|ses)(?=[a-z])/, '');
+    if (!a) return false;
+    if (a === b) return true;
+    // « −5 et 5 » = « 5 et −5 » ; « 2x+3 » = « 3+2x » n'est pas tenté (on demande alors à l'élève de juger)
+    var tri = function (x) { return x.split(/et|;/).sort().join('|'); };
+    return tri(a) === tri(b);
+  }
+
   // Lecture tolérante de la réponse tapée : virgule ou point, fraction a/b, signe −, unité finale
   function lire(s) {
     s = String(s || '').replace(/[\s  ]/g, '').replace(/[−–]/g, '-').replace(/,/g, '.');
@@ -1684,6 +1721,7 @@ if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.se
   function egal(a, b) { return Math.abs(a - b) < 1e-6 * Math.max(1, Math.abs(b)); }
   function verifier(q, rep) {
     if (q.type === 'qcm') return rep === q.bonne;
+    if (q.type === 'libre') return verifierLibre(q, rep);
     var v = lire(rep);
     if (q.accepte) return !isNaN(v) && q.accepte(v);
     return !isNaN(v) && egal(v, q.valeur);
@@ -1692,6 +1730,11 @@ if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.se
   // Explique l'erreur probable à partir de la réponse donnée (chaîne vide si rien de reconnu)
   function diagnostiquer(q, rep) {
     if (q.type === 'qcm') return (q.explications && q.explications[rep]) || '';
+    if (q.type === 'libre') {
+      // si la réponse écrite correspond à une mauvaise proposition du QCM d'origine, on donne son explication
+      var i = (q.choixQcm || []).map(normaliser).indexOf(normaliser(rep));
+      return i >= 0 && q.explications ? q.explications[i] || '' : '';
+    }
     var v = lire(rep);
     if (isNaN(v)) return 'Ta réponse n\'est pas un nombre lisible. Écris par exemple 12 ; −3 ; 2,5 ou 3/4.';
     for (var i = 0; i < q.pieges.length; i++) if (egal(v, q.pieges[i][0]) && !egal(v, q.valeur)) return q.pieges[i][1];
@@ -1712,7 +1755,7 @@ if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.se
     return !!(m && pgcd(+m[1], +m[2]) > 1);
   }
 
-  global.Exos = { THEMES: THEMES, GENERATEURS: G, creer: creer, creerNiveau: creerNiveau, parId: G_byId, verifier: verifier, diagnostiquer: diagnostiquer,
+  global.Exos = { THEMES: THEMES, GENERATEURS: G, creer: creer, creerNiveau: creerNiveau, creerSansChoix: creerSansChoix, parId: G_byId, verifier: verifier, diagnostiquer: diagnostiquer,
                   nonSimplifiee: nonSimplifiee, lire: lire, f: f, shuffle: shuffle, pick: pick };
 })(window);
 
@@ -2502,10 +2545,24 @@ window.FICHES = {
     { id: 'zeroA', nom: 'Sujet zéro A (ministère)', notions: ['frac-quantite', 'conv-durees', 'mediane', 'droite-graduee', 'angles', 'cosinus', 'thales', 'pourcent-de', 'scratch'] },
     { id: 'zeroB', nom: 'Sujet zéro B (ministère)', notions: ['vocab-angles', 'moyenne', 'pourcent-de', 'graphique-temps', 'vitesse', 'perimetres', 'equation-calcul', 'thales', 'programme-calcul'] }
   ];
-  function composer(mode, theme, sujet) {
+  // Formats de réponse : « seule » = aucune proposition, correction immédiate ;
+  // « brevet » = comme les vrais sujets (QCM et réponses directes mélangés), chrono, corrections à la fin
+  function enBrevet(s) { return s.mode === 'epreuve' || s.format === 'brevet'; }
+  function fabriquer(g, format, niveau) {
+    if (format === 'brevet') return E.creer(g, false);   // proportion de QCM proche des sujets (≈ 40 %)
+    if (format === 'seule') {
+      var q = E.creerSansChoix(g, niveau);
+      // notion impossible sans propositions (« Laquelle de ces… ») : une autre notion du même thème, sinon au hasard
+      var autres = E.shuffle(E.GENERATEURS.filter(function (x) { return !x.hors && x.id !== g.id; })).sort(function (a, b) { return (b.theme === g.theme) - (a.theme === g.theme); });
+      for (var i = 0; !q && i < autres.length; i++) q = E.creerSansChoix(autres[i], niveau);
+      return q;
+    }
+    return E.creerNiveau(g, niveau);
+  }
+  function composer(mode, theme, sujet, format) {
     var et = etatNotions(), G = E.GENERATEURS, liste = [];
     var modele = SUJETS_2026.filter(function (x) { return x.id === sujet; })[0];
-    if (modele) return modele.notions.map(function (id) { return E.creer(NOTION[id]); });
+    if (modele) return modele.notions.map(function (id) { return E.creer(NOTION[id], false); });
     if (mode === 'epreuve') {
       // format des sujets zéro 2026 : 6 questions à 0,5 point puis 3 questions à 1 point,
       // uniquement des notions de la liste officielle, en variant les thèmes
@@ -2524,7 +2581,7 @@ window.FICHES = {
         return res;
       }
       liste = piocher(0.5, 6).concat(piocher(1, 3));
-      return liste.map(function (g) { return E.creer(g); });
+      return liste.map(function (g) { return E.creer(g, false); });
     } else if (mode === 'theme') {
       liste = tirer(G.filter(function (g) { return g.theme === theme; }), function (g) { return 1 + et[g.id].priorite; }, 10);
     } else if (mode === 'difficultes') {
@@ -2542,7 +2599,7 @@ window.FICHES = {
       liste = liste.concat(tirer(G, function (g) { return (et[g.id].statut === 'maitrise' ? 0.5 : 1) * (g.hors ? 0.3 : 1); }, 10 - liste.length, compte));
       liste = E.shuffle(liste);
     }
-    return liste.map(function (g) { return E.creerNiveau(g, niveauPour(et[g.id])); });
+    return liste.map(function (g) { return fabriquer(g, format, niveauPour(et[g.id])); });
   }
   // Niveau de difficulté adapté : facile pour une notion nouvelle ou ratée, exigeant pour une notion maîtrisée
   function niveauPour(e) { return !e || e.statut === 'nouveau' || e.statut === 'revoir' ? 1 : e.statut === 'encours' ? 2 : 3; }
@@ -2708,7 +2765,8 @@ window.FICHES = {
   // =====================================================================
   function configurer(mode) {
     vueCourante = 'config';
-    var dernier = 'ecran'; try { dernier = localStorage.getItem('mathos.repondre') || 'ecran'; } catch (e) {}
+    var dernier = 'ecran', format = 'seule';
+    try { dernier = localStorage.getItem('mathos.repondre') || 'ecran'; format = localStorage.getItem('mathos.format') || 'seule'; } catch (e) {}
     var titres = { jour: 'Entraînement du jour', epreuve: 'Épreuve blanche', difficultes: 'Revoir mes difficultés', theme: 'Travailler un thème', sujet: 'Sujets du brevet 2026' };
     var html = '<div class="carte"><h2>' + titres[mode] + '</h2>';
     if (mode === 'epreuve') html += '<p class="note">Format des sujets zéro du ministère : 9 questions sans calculatrice en 20 minutes, 6 questions à 0,5 point puis 3 questions à 1 point (note sur 6). Les corrections sont données à la fin, comme au brevet.</p>';
@@ -2720,6 +2778,13 @@ window.FICHES = {
     if (mode === 'theme') {
       html += '<h3>Quel thème ?</h3><div class="themes-sel">' + E.THEMES.map(function (t, i) {
         return '<button data-theme="' + t.id + '"' + (i === 0 ? ' class="on"' : '') + '>' + t.icone + ' ' + t.nom + '</button>'; }).join('') + '</div>';
+    }
+    if (mode === 'jour' || mode === 'difficultes' || mode === 'theme') {
+      html += '<h3>Format des réponses</h3><div class="choix-mode">' +
+        '<input type="radio" name="format" id="f-seule" value="seule"' + (format === 'seule' ? ' checked' : '') + '><label for="f-seule"><b>🖊️ Je trouve seule</b><br><small class="note">Aucune proposition de réponse : on écrit son résultat. Correction et méthode tout de suite.</small></label>' +
+        '<input type="radio" name="format" id="f-brevet" value="brevet"' + (format === 'brevet' ? ' checked' : '') + '><label for="f-brevet"><b>🎓 Conditions du brevet</b><br><small class="note">Comme les vrais sujets : QCM et réponses directes mélangés, chrono (2 min par question), corrections à la fin.</small></label></div>';
+    } else {
+      html += '<p class="note">🎓 Format du brevet : QCM et réponses directes mélangés comme dans les vrais sujets, corrections à la fin.</p>';
     }
     html += '<h3>Qui répond ?</h3><div class="choix-mode">' +
       '<input type="radio" name="rep" id="r-ecran" value="ecran"' + (dernier === 'ecran' ? ' checked' : '') + '><label for="r-ecran"><b>💻 ' + esc(prenom()) + ' à l\'ordinateur</b><br><small class="note">Elle tape ou clique ses réponses, correction automatique.</small></label>' +
@@ -2736,24 +2801,27 @@ window.FICHES = {
     $vue.querySelector('[data-nav-local]').onclick = function () { aller('accueil'); };
     document.getElementById('go').onclick = function () {
       var rep = $vue.querySelector('input[name=rep]:checked').value;
-      try { localStorage.setItem('mathos.repondre', rep); } catch (e) {}
-      if (mode === 'sujet') demarrer('epreuve', rep, theme, sujet); else demarrer(mode, rep, theme);
+      var fm = $vue.querySelector('input[name=format]:checked'), fmt = fm ? fm.value : 'brevet';
+      try { localStorage.setItem('mathos.repondre', rep); if (fm) localStorage.setItem('mathos.format', fmt); } catch (e) {}
+      if (mode === 'sujet') demarrer('epreuve', rep, theme, sujet); else demarrer(mode, rep, theme, null, fmt);
     };
   }
 
   // =====================================================================
   //  Séance
   // =====================================================================
-  function demarrer(mode, repondre, theme, sujet) {
+  function demarrer(mode, repondre, theme, sujet, format) {
     var modele = SUJETS_2026.filter(function (x) { return x.id === sujet; })[0];
-    seance = { id: Date.now().toString(36) + Math.random().toString(36).slice(2, 7), mode: mode, repondre: repondre, theme: mode === 'theme' ? theme : '',
-               sujet: modele ? modele.nom : '', debut: new Date().toISOString(), qs: composer(mode, theme, sujet), i: 0, rep: [], fini: false, t0: Date.now(), tq: Date.now(),
-               limite: mode === 'epreuve' ? 20 * 60 : 0 };
+    format = mode === 'epreuve' ? 'brevet' : (format || 'seule');
+    var qs = composer(mode, theme, sujet, format);
+    seance = { id: Date.now().toString(36) + Math.random().toString(36).slice(2, 7), mode: mode, repondre: repondre, theme: mode === 'theme' ? theme : '', format: format,
+               sujet: modele ? modele.nom : '', debut: new Date().toISOString(), qs: qs, i: 0, rep: [], fini: false, t0: Date.now(), tq: Date.now(),
+               limite: mode === 'epreuve' ? 20 * 60 : format === 'brevet' ? qs.length * 120 : 0 };
     if (seance.limite) {
       minuteur = setInterval(function () {
         var reste = seance.limite - (Date.now() - seance.t0) / 1000, c = document.getElementById('chrono');
         if (c) { c.textContent = '⏱ ' + mmss(reste); c.classList.toggle('urgent', reste < 120); }
-        if (reste <= 0) { arreterMinuteur(); toast('Temps écoulé : les 20 minutes sont terminées.'); terminer(); }
+        if (reste <= 0) { arreterMinuteur(); toast('Temps écoulé : la séance est terminée.'); terminer(); }
       }, 1000);
     }
     afficherQuestion();
@@ -2783,6 +2851,11 @@ window.FICHES = {
     if (q.type === 'qcm') {
       html += '<div class="qcm">' + q.choix.map(function (c, k) { return '<button data-c="' + k + '"><span class="l">' + LETTRES[k] + '</span>' + c + '</button>'; }).join('') + '</div>';
       if (oral) html += '<p class="aide">Cliquez sur la réponse qu\'elle donne, ou affichez la réponse.</p>';
+    } else if (q.type === 'libre') {
+      html += '<div class="saisie"><input id="rep" autocomplete="off" autocapitalize="off" placeholder="' + (oral ? 'Sa réponse (facultatif)' : 'Ta réponse') + '">' +
+        '<span class="touches">' + ['−', '²', '×', '/'].map(function (t) { return '<button type="button" class="btn sec touche" data-t="' + t + '">' + t + '</button>'; }).join('') + '</span>' +
+        '<button class="btn" id="valider">' + (oral ? 'Vérifier sa réponse' : 'Valider') + '</button></div>' +
+        '<p class="aide">Aucune proposition : écris ta réponse (un nombre, une expression comme 3x² − 2x, ou un mot comme « losange »).</p>';
     } else {
       html += '<div class="saisie"><input id="rep" autocomplete="off" inputmode="decimal" placeholder="' + (oral ? 'Sa réponse (facultatif)' : 'Ta réponse') + '">' +
         (q.unite ? '<span class="note">' + esc(q.unite) + '</span>' : '') +
@@ -2793,7 +2866,7 @@ window.FICHES = {
     html += '<div class="ligne-btn">' + (oral ? '<button class="btn sec" id="voir">👁 Afficher la réponse</button>' : '') +
       ('speechSynthesis' in window ? '<button class="btn sec" id="lire">🔊 Lire la question</button>' : '') +
       '<button class="btn sec" id="brouillon-bt">✏️ Brouillon</button>' +
-      (s.mode === 'epreuve' && !oral ? '<button class="btn sec" id="passer">Passer (je ne sais pas)</button>' : '') + '</div><div id="retour"></div></div>';
+      (enBrevet(s) && !oral ? '<button class="btn sec" id="passer">Passer (je ne sais pas)</button>' : '') + '</div><div id="retour"></div></div>';
     $vue.innerHTML = html;
 
     var inp = document.getElementById('rep');
@@ -2802,7 +2875,7 @@ window.FICHES = {
       inp.onkeydown = function (e) { if (e.key === 'Enter') document.getElementById('valider').click(); };
       document.getElementById('valider').onclick = function () { if (inp.value.trim() !== '') repondre(inp.value.trim()); };
       $vue.querySelectorAll('[data-t]').forEach(function (bt) {
-        bt.onclick = function () { var t = bt.getAttribute('data-t'); inp.value = t === '−' ? (inp.value.charAt(0) === '-' ? inp.value.slice(1) : '-' + inp.value) : inp.value + t; inp.focus(); };
+        bt.onclick = function () { var t = bt.getAttribute('data-t'); inp.value = t === '−' && q.type !== 'libre' ? (inp.value.charAt(0) === '-' ? inp.value.slice(1) : '-' + inp.value) : inp.value + t; inp.focus(); };
       });
     }
     $vue.querySelectorAll('[data-c]').forEach(function (b) {
@@ -2859,8 +2932,20 @@ window.FICHES = {
     var diag = (!ok && rep !== null && rep !== undefined) ? E.diagnostiquer(q, rep) : '';
     s.rep[s.i] = { g: q.gen, t: q.theme, ok: ok, r: rep === null || rep === undefined ? '' : (q.type === 'qcm' ? LETTRES[rep] + '. ' + q.choix[rep] : esc(String(rep))),
                    q: q.texte, br: q.reponse, d: diag, ms: Date.now() - s.tq, p: q.pts, n: q.notion };
-    if (s.mode === 'epreuve' && s.repondre === 'ecran') return suivante();
+    if (enBrevet(s) && s.repondre === 'ecran') return suivante();
+    // réponse écrite non reconnue : l'élève (ou le parent) juge si c'est la même chose écrite autrement
+    if (!ok && q.type === 'libre' && okManuel === undefined && rep !== null) return autoEvaluation(q, rep, diag);
     afficherRetour(q, rep, ok, diag);
+  }
+  function autoEvaluation(q, rep, diag) {
+    var s = seance, i = s.i;
+    var inp = document.getElementById('rep'); if (inp) inp.disabled = true;
+    ['valider', 'voir', 'passer'].forEach(function (id) { var b = document.getElementById(id); if (b) b.remove(); });
+    document.getElementById('retour').innerHTML = '<div class="retour neutre"><div class="titre">Compare avec la réponse attendue</div>' +
+      '<p>Ta réponse : <b>' + esc(rep) + '</b><br>Réponse attendue : <b>' + q.reponse + '</b></p><p class="note">Est-ce la même chose, écrite autrement ?</p></div>' +
+      '<div class="ligne-btn"><button class="btn ok" id="pareil">✓ Oui, c\'est pareil</button><button class="btn ko" id="different">✗ Non</button></div>';
+    document.getElementById('pareil').onclick = function () { s.rep[i].ok = true; s.rep[i].d = ''; afficherRetour(q, rep, true, ''); };
+    document.getElementById('different').onclick = function () { afficherRetour(q, rep, false, diag); };
   }
 
   function afficherRetour(q, rep, ok, diag) {
@@ -2873,6 +2958,12 @@ window.FICHES = {
     var inp = document.getElementById('rep'); if (inp) inp.disabled = true;
     ['valider', 'voir', 'passer'].forEach(function (id) { var b = document.getElementById(id); if (b) b.remove(); });
 
+    if (enBrevet(s)) {
+      document.getElementById('retour').innerHTML = '<div class="retour neutre"><div class="titre">' + (ok ? '✓ Noté juste' : '✗ Noté faux') + '</div><p class="note">Comme au brevet : les corrections sont données à la fin.</p></div>' +
+        '<div class="ligne-btn"><button class="btn" id="suivante">' + (s.i + 1 < s.qs.length ? 'Question suivante →' : 'Voir le bilan') + '</button></div>';
+      var bs = document.getElementById('suivante'); bs.focus(); bs.onclick = suivante;
+      return;
+    }
     var html = '<div class="retour ' + (ok ? 'ok' : 'ko') + '"><div class="titre">' + (ok ? '✓ Bonne réponse !' : '✗ Ce n\'est pas ça') + '</div>';
     if (ok && q.type === 'num' && E.nonSimplifiee(rep)) html += '<p>Juste, mais pense à simplifier : <b>' + q.reponse + '</b>.</p>';
     if (!ok) {
@@ -2881,12 +2972,12 @@ window.FICHES = {
       if (diag) html += '<p>🔎 <b>Ce qui s\'est sans doute passé :</b> ' + diag + '</p>';
     }
     html += '<p>📝 <b>Correction :</b> ' + q.correction + '</p>' + ficheHTML(q.gen) + '</div><div class="ligne-btn">';
-    if (!ok && s.mode !== 'epreuve') html += '<button class="btn sec" id="similaire">🔁 Une question du même type</button>';
+    if (!ok) html += '<button class="btn sec" id="similaire">🔁 Une question du même type</button>';
     html += '<button class="btn" id="suivante">' + (s.i + 1 < s.qs.length ? 'Question suivante →' : 'Voir le bilan') + '</button></div>';
     document.getElementById('retour').innerHTML = html;
     var b = document.getElementById('suivante'); b.focus(); b.onclick = suivante;
     var sim = document.getElementById('similaire');
-    if (sim) sim.onclick = function () { s.qs.splice(s.i + 1, 0, E.creerNiveau(NOTION[q.gen], 1)); suivante(); };
+    if (sim) sim.onclick = function () { s.qs.splice(s.i + 1, 0, fabriquer(NOTION[q.gen], s.format, 1)); suivante(); };
   }
 
   // Mode oral : le parent affiche la réponse puis note juste / faux
@@ -2894,8 +2985,8 @@ window.FICHES = {
     var s = seance, q = s.qs[s.i];
     var voir = document.getElementById('voir'); if (voir) voir.remove();
     document.getElementById('retour').innerHTML = '<div class="retour neutre"><div class="titre">Réponse attendue : ' + q.reponse + (q.unite && q.type === 'num' ? ' ' + esc(q.unite) : '') + '</div>' +
-      '<p>📝 ' + q.correction + '</p>' + ficheHTML(q.gen) + '</div><div class="ligne-btn"><button class="btn ok" id="juste">✓ Elle a juste</button><button class="btn ko" id="faux">✗ Elle s\'est trompée</button></div>' +
-      '<p class="aide">Astuce : si elle s\'est trompée, tapez sa réponse dans le champ ci-dessus (ou cliquez sa proposition) puis « Vérifier » pour obtenir l\'explication de l\'erreur.</p>';
+      (enBrevet(s) ? '<p class="note">Corrections à la fin, comme au brevet.</p>' : '<p>📝 ' + q.correction + '</p>' + ficheHTML(q.gen)) + '</div><div class="ligne-btn"><button class="btn ok" id="juste">✓ Elle a juste</button><button class="btn ko" id="faux">✗ Elle s\'est trompée</button></div>' +
+      (enBrevet(s) ? '' : '<p class="aide">Astuce : si elle s\'est trompée, tapez sa réponse dans le champ ci-dessus (ou cliquez sa proposition) puis « Vérifier » pour obtenir l\'explication de l\'erreur.</p>');
     document.getElementById('juste').onclick = function () { repondre(null, true); };
     document.getElementById('faux').onclick = function () { repondre(null, false); };
     var inp = document.getElementById('rep');
@@ -2925,7 +3016,7 @@ window.FICHES = {
     var totalPts = s.rep.reduce(function (t, r) { return t + (r.p || 0); }, 0);
     var note = s.mode === 'epreuve' && totalPts ? Math.round(s.rep.reduce(function (t, r) { return t + (r.ok ? r.p : 0); }, 0) / totalPts * 60) / 10 : undefined;
     var enreg = { id: s.id, debut: s.debut, fin: new Date().toISOString(), duree: Math.round((Date.now() - s.t0) / 1000), poste: poste() || (S.appareil ? S.appareil() : 'Mac'),
-                  mode: s.mode, repondre: s.repondre, theme: s.theme, sujet: s.sujet || undefined, score: score, note: note, total: s.rep.length, rep: s.rep };
+                  mode: s.mode, repondre: s.repondre, format: s.format, theme: s.theme, sujet: s.sujet || undefined, score: score, note: note, total: s.rep.length, rep: s.rep };
     if (!modeEssai()) S.ajouterSeance(enreg);
     bilan(enreg, s.qs);
   }
@@ -3041,7 +3132,7 @@ window.FICHES = {
     html += '<div class="carte"><h2>Historique des séances</h2><div class="hist-wrap"><table class="hist"><tr><th>Date</th><th>Séance</th><th>Réponses</th><th>Score</th><th>Poste</th></tr>';
     var NOMS = { jour: 'Entraînement du jour', epreuve: 'Épreuve blanche', difficultes: 'Difficultés', theme: 'Thème' };
     ss.slice().reverse().slice(0, 40).forEach(function (s) {
-      html += '<tr><td>' + dateCourte(s.debut) + '</td><td>' + NOMS[s.mode] + (s.sujet ? ' · ' + esc(s.sujet) : '') + (s.theme ? ' · ' + THEME[s.theme].nom : '') + '</td><td>' + (s.repondre === 'oral' ? '🗣️ oral' : '💻 écran') +
+      html += '<tr><td>' + dateCourte(s.debut) + '</td><td>' + NOMS[s.mode] + (s.sujet ? ' · ' + esc(s.sujet) : '') + (s.theme ? ' · ' + THEME[s.theme].nom : '') + (s.mode !== 'epreuve' && s.format ? ' · ' + (s.format === 'brevet' ? '🎓 brevet' : '🖊️ seule') : '') + '</td><td>' + (s.repondre === 'oral' ? '🗣️ oral' : '💻 écran') +
         '</td><td>' + s.score + '/' + s.total + (s.mode === 'epreuve' ? ' (' + E.f(sur6De(s)) + '/6)' : '') + '</td><td>' + esc(s.poste || '') + '</td></tr>';
     });
     html += '</table></div>' + (ss.length ? '' : '<p class="note">Aucune séance pour l\'instant.</p>') + '</div>';
