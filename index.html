@@ -146,6 +146,10 @@ table.hist tr.alerte td { color: var(--ko); }
   .form-ligne label { width: 100%; } .tuile { padding: 14px; }
 }
 .hist-wrap { overflow-x: auto; }
+.formats { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; }
+.format-col h3 { margin-top: 0; } .kpis.petits { grid-template-columns: repeat(2, minmax(0, 1fr)); } .kpis.petits .kpi .v { font-size: 20px; }
+.format-col .barre-theme { grid-template-columns: 150px 1fr 90px; font-size: 14px; }
+@media (max-width: 640px) { .format-col .barre-theme { grid-template-columns: 1fr 80px; } }
 details.fiche { margin-top: 10px; background: var(--carte); border: 1px solid var(--ligne); border-radius: 10px; padding: 8px 12px; }
 details.fiche summary { cursor: pointer; font-weight: 600; color: var(--accent); } details.fiche p { margin: 8px 0; }
 .brouillon { margin-top: 14px; } .brouillon canvas { width: 100%; height: 320px; display: block; border: 2px dashed var(--ligne); border-radius: 12px; background: var(--fond); touch-action: none; cursor: crosshair; }
@@ -3092,7 +3096,30 @@ window.FICHES = {
       (epreuves.length ? '<div class="graph" id="graph"></div>' : '<p class="note">Aucune épreuve blanche pour l\'instant.</p>') + '</div>';
 
     // Réussite par thème
-    html += '<div class="carte"><h2>Réussite par thème</h2><p class="note">Sur les 30 dernières réponses de chaque thème.</p>';
+    // Statistiques séparées selon le format des réponses
+    // (séances antérieures aux formats : épreuves = brevet ; entraînements = brevet aussi, car ils mélangeaient déjà QCM et réponses directes)
+    var parFormat = { seule: [], brevet: [] }, semFormat = { seule: [], brevet: [] }, nbSeances = { seule: 0, brevet: 0 };
+    ss.forEach(function (s) {
+      var f = s.mode === 'epreuve' ? 'brevet' : (s.format || 'brevet');
+      nbSeances[f]++;
+      parFormat[f] = parFormat[f].concat(s.rep || []);
+      if (s.debut >= ilya7) semFormat[f] = semFormat[f].concat(s.rep || []);
+    });
+    function colonneFormat(f, titre, sous) {
+      var t = parFormat[f];
+      return '<div class="format-col"><h3>' + titre + '</h3><p class="note">' + sous + '</p>' +
+        '<div class="kpis petits">' + kpi(nbSeances[f], 'séances') + kpi(t.length, 'questions') + kpi(taux(t), 'réussite globale') + kpi(taux(semFormat[f]), 'sur 7 jours') + '</div>' +
+        E.THEMES.map(function (th) {
+          var rs = t.filter(function (r) { return r.t === th.id; }).slice(-30);
+          if (!rs.length) return '';
+          var tx = rs.filter(function (r) { return r.ok; }).length / rs.length;
+          return '<div class="barre-theme"><span>' + th.icone + ' ' + th.nom + '</span><div class="rail"><div style="width:' + Math.round(tx * 100) + '%"></div></div><span class="niveau">' + pct(tx) + ' · ' + rs.length + ' q.</span></div>';
+        }).join('') + (t.length ? '' : '<p class="note">Aucune séance dans ce format pour l\'instant.</p>') + '</div>';
+    }
+    html += '<div class="carte"><h2>Selon le format des réponses</h2><p class="note">Trouver seule, sans propositions, est plus exigeant que choisir parmi des propositions : comparer les deux montre si les notions sont vraiment acquises.</p>' +
+      '<div class="formats">' + colonneFormat('seule', '🖊️ Je trouve seule', 'Sans propositions de réponse.') +
+      colonneFormat('brevet', '🎓 Conditions du brevet', 'QCM et réponses directes mélangés : épreuves, sujets 2026 et entraînements « brevet ».') + '</div></div>';
+    html += '<div class="carte"><h2>Réussite par thème (tous formats)</h2><p class="note">Sur les 30 dernières réponses de chaque thème.</p>';
     E.THEMES.forEach(function (t) {
       var rs = toutes.filter(function (r) { return r.t === t.id; }).slice(-30);
       var tx = rs.length ? rs.filter(function (r) { return r.ok; }).length / rs.length : 0;
