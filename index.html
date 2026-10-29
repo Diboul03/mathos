@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="fr"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>MathOS</title>
+<title>Mathos</title>
 <meta name="theme-color" content="#2f6fdb">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" type="image/png" href="icone-192.png">
@@ -127,7 +127,7 @@ table.hist tr.alerte td { color: var(--ko); }
 .form-ligne input { font-size: 16px; padding: 8px 10px; border-radius: 8px; border: 1px solid var(--ligne); background: var(--carte); color: var(--encre); }
 .note { font-size: 14px; color: var(--encre2); }
 .cache { display: none !important; }
-/* Fenêtres positionnées dans la page (et non au centre de l'écran) : MathOS peut être affiché dans un grand cadre Google Sites */
+/* Fenêtres positionnées dans la page (et non au centre de l'écran) : Mathos peut être affiché dans un grand cadre Google Sites */
 .boite-fond { position: absolute; left: 0; top: 0; width: 100%; background: rgba(10, 14, 24, .45); padding: 0 16px; z-index: 20; box-sizing: border-box; }
 .boite-fond .boite { margin: 0 auto; }
 .boite { background: var(--carte); color: var(--encre); border-radius: 14px; padding: 20px; max-width: 420px; width: 100%; box-shadow: 0 10px 40px rgba(0,0,0,.25); }
@@ -170,7 +170,7 @@ label.coche { display: block; padding: 4px 0 4px 8px; font-size: 15px; } label.c
 <body>
 <div class="app">
   <header class="barre">
-    <div class="logo" data-nav="accueil">Math<span>OS</span></div>
+    <div class="logo" data-nav="accueil">Math<span>os</span></div>
     <nav></nav>
     <span id="pastille" class="pastille"><i></i><span>…</span></span>
   </header>
@@ -180,7 +180,7 @@ label.coche { display: block; padding: 4px 0 4px 8px; font-size: 15px; } label.c
 <script>window.MATHOS_API = "https://script.google.com/macros/s/AKfycbwnLuU4_WzzCxwfYZMdCWswALxPhm3KdZ53QjJr6USZWBfcSCLS7p5_WIm_1hjPDHaJuQ/exec";
 if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('sw.js').catch(function () {});</script>
 <script>
-/* MathOS — générateurs d'exercices d'automatismes (brevet, 3e).
+/* Mathos — générateurs d'exercices d'automatismes (brevet, 3e).
    Chaque générateur renvoie une question nouvelle à chaque appel :
    { gen, theme, texte, type: 'qcm' | 'num', choix, bonne, valeur, reponse, correction, figure,
      pieges (num) / explications (qcm) : explication de l'erreur probable selon la réponse donnée } */
@@ -1763,7 +1763,7 @@ if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.se
 
 </script>
 <script>
-/* MathOS — fiches méthode : la règle, un exemple résolu et le piège classique, pour chaque notion. */
+/* Mathos — fiches méthode : la règle, un exemple résolu et le piège classique, pour chaque notion. */
 window.FICHES = {
   /* ===== CALCUL ===== */
   'priorites': {
@@ -2211,7 +2211,7 @@ window.FICHES = {
 
 </script>
 <script>
-/* MathOS (version Google Apps Script) — progression commune dans un fichier du Google Drive,
+/* Mathos (version Google Apps Script) — progression commune dans un fichier du Google Drive,
    lue et écrite par Code.gs. Même interface que sync.js pour que app.js serve à toutes les versions.
    Un code d'accès est demandé une fois par appareil ; le serveur le vérifie à chaque appel.
    Une copie locale sert d'affichage immédiat et garde les séances non envoyées (hors ligne). */
@@ -2298,7 +2298,7 @@ window.FICHES = {
     var e = document.createElement('div');
     e.id = 'ecran-code'; e.className = 'boite-fond';
     var nomActuel = ''; try { nomActuel = localStorage.getItem('mathos.poste') || ''; } catch (err) {}
-    e.innerHTML = '<form class="boite"><h2>MathOS</h2><p>Entrez le code d\'accès pour ouvrir l\'entraînement.</p>' +
+    e.innerHTML = '<form class="boite"><h2>Mathos</h2><p>Entrez le code d\'accès pour ouvrir l\'entraînement.</p>' +
       '<input id="code-acces" inputmode="numeric" autocomplete="off" maxlength="12" placeholder="Code d\'accès">' +
       '<p class="note" style="margin:12px 0 0">Nom de cet appareil (pour le journal des connexions) :</p>' +
       '<input id="code-appareil" autocomplete="off" maxlength="40" placeholder="ex. Téléphone de Louise-Marie" value="' + nomActuel.replace(/"/g, '&quot;') + '">' +
@@ -2387,7 +2387,7 @@ window.FICHES = {
 
 </script>
 <script>
-/* MathOS — interface : accueil, séances (écran / oral), bilan, progrès, règles, réglages. */
+/* Mathos — interface : accueil, séances (écran / oral), bilan, progrès, règles, réglages. */
 (function () {
   'use strict';
   var E = window.Exos, S = window.Sync;
@@ -2747,7 +2747,7 @@ window.FICHES = {
   function vueProfil() {
     profil = null; majNav();
     if (S.oublierParent) S.oublierParent();
-    $vue.innerHTML = '<div class="profils"><h1>Qui utilise MathOS ?</h1>' +
+    $vue.innerHTML = '<div class="profils"><h1>Qui utilise Mathos ?</h1>' +
       '<button class="tuile profil" id="p-eleve"><span class="ico">👧</span><b>' + esc(prenom()) + '</b><small>Mon entraînement et mes progrès</small></button>' +
       '<button class="tuile profil" id="p-parent"><span class="ico">🔒</span><b>Parents</b><small>Tableau de bord, séances à l\'oral, réglages (code demandé)</small></button>' +
       '<label class="coche"><input type="checkbox" id="p-direct"' + (profilDirect() ? ' checked' : '') + '> Sur cet appareil, ouvrir directement l\'espace de ' + esc(prenom()) + '</label></div>';
@@ -2829,7 +2829,7 @@ window.FICHES = {
       html += '<div class="carte" style="border-color:var(--att)"><b>Synchronisation Google Drive</b><p class="note" style="margin:4px 0 10px">' +
         (S.etat.statut === 'reconnecter' ? 'Chrome demande de confirmer l\'accès au dossier Google Drive pour ce poste.' :
          'Ce poste n\'est pas encore relié au dossier Google Drive : la progression reste sur ce Mac uniquement.') +
-        '</p><button class="btn" data-act="connecter">' + (S.etat.statut === 'reconnecter' ? 'Reconnecter Google Drive' : 'Choisir le dossier MathOS sur le Drive') + '</button></div>';
+        '</p><button class="btn" data-act="connecter">' + (S.etat.statut === 'reconnecter' ? 'Reconnecter Google Drive' : 'Choisir le dossier Mathos sur le Drive') + '</button></div>';
     }
 
     html += '<div class="grille">' +
@@ -3337,17 +3337,17 @@ window.FICHES = {
       '<h2>Ce qui est tombé en juin 2026</h2><p>Dans les parties automatismes des sujets Métropole, Amérique du Nord, Centres étrangers, Asie et Polynésie, on retrouve presque à chaque fois :</p><ul>' +
       '<li>une <b>médiane</b> (série de 5 à 9 valeurs, parfois négatives) ;</li><li>une <b>probabilité</b> simple (boules, beignets, roue) ;</li><li>une <b>baisse de 10 %</b> sur un prix ;</li>' +
       '<li>une <b>notation scientifique</b> (grand ou petit nombre) ;</li><li>un <b>cosinus</b> (rapport de longueurs ou formule du type AB = 5 × cos 60°).</li></ul>' +
-      '<p>Mais aussi : équations, fractions, tableau de proportionnalité, diagrammes (barres, circulaire), lecture de graphique, nature d\'un quadrilatère d\'après son codage ou ses diagonales, translation, repère, vitesse, conversions, développement et factorisation, divisibilité. L\'épreuve blanche de MathOS tire plus souvent ces notions fréquentes.</p>' +
-      '<h2>Liste officielle des automatismes (Éduscol, octobre 2025)</h2><p class="note">Liste indicative publiée par le ministère. Toutes ces notions sont travaillées dans MathOS.</p>' +
+      '<p>Mais aussi : équations, fractions, tableau de proportionnalité, diagrammes (barres, circulaire), lecture de graphique, nature d\'un quadrilatère d\'après son codage ou ses diagonales, translation, repère, vitesse, conversions, développement et factorisation, divisibilité. L\'épreuve blanche de Mathos tire plus souvent ces notions fréquentes.</p>' +
+      '<h2>Liste officielle des automatismes (Éduscol, octobre 2025)</h2><p class="note">Liste indicative publiée par le ministère. Toutes ces notions sont travaillées dans Mathos.</p>' +
       LISTE.map(function (b) { return '<h3>' + b[0] + '</h3><ul>' + b[1].map(function (x) { return '<li>' + x + '</li>'; }).join('') + '</ul>'; }).join('') +
-      '<p class="note">MathOS propose aussi quelques notions de 3e qui ne figurent pas dans cette liste (nombres premiers, moyenne pondérée, conversions m/s…). Elles servent pour la partie 2 et ne tombent jamais en épreuve blanche.</p>' +
+      '<p class="note">Mathos propose aussi quelques notions de 3e qui ne figurent pas dans cette liste (nombres premiers, moyenne pondérée, conversions m/s…). Elles servent pour la partie 2 et ne tombent jamais en épreuve blanche.</p>' +
       '<h2>Conseils pour le jour J</h2><ul>' +
       '<li>Environ <b>2 minutes par question</b>. Si une question bloque, on passe et on y revient à la fin.</li>' +
       '<li>Répondre à <b>toutes</b> les questions. En QCM, on élimine d\'abord les réponses impossibles.</li>' +
       '<li>Vérifier l\'<b>unité</b> demandée (cm, m, min, h, €…) et l\'<b>ordre de grandeur</b> du résultat.</li>' +
       '<li>Faire attention aux <b>signes</b>, aux <b>priorités opératoires</b>, et simplifier les fractions.</li>' +
       '<li>Bien recopier le <b>numéro</b> de chaque question avec sa réponse.</li></ul>' +
-      '<h2>Comment s\'entraîner avec MathOS</h2><ul>' +
+      '<h2>Comment s\'entraîner avec Mathos</h2><ul>' +
       '<li><b>Entraînement du jour</b> (10 min) : idéalement chaque jour. Il donne la priorité aux difficultés.</li>' +
       '<li><b>Épreuve blanche</b> : une fois par semaine, pour s\'habituer au chronomètre et au barème.</li>' +
       '<li><b>Mode oral</b> : en voiture ou à table, un parent lit les questions et note les réponses.</li></ul>' +
@@ -3374,20 +3374,20 @@ window.FICHES = {
             return '<label class="coche"><input type="checkbox" data-classe="' + g.id + '"' + (sel.indexOf(g.id) >= 0 ? ' checked' : '') + '> ' + esc(g.nom) + '</label>'; }).join('') + '</details>';
         }).join('') +
         '<div class="ligne-btn"><button class="btn" id="classe-ok">Enregistrer ces notions</button><button class="btn sec" id="classe-raz">Tout décocher</button></div></div>' +
-      (S.journal ? '<div class="carte"><h2>Journal des connexions</h2><p class="note">Qui a ouvert MathOS et quand, sur quel appareil, et ce qui a été fait. Les tentatives avec un mauvais code apparaissent en rouge.</p><div id="journal" class="hist-wrap"><p class="note">Chargement…</p></div></div>' : '') +
+      (S.journal ? '<div class="carte"><h2>Journal des connexions</h2><p class="note">Qui a ouvert Mathos et quand, sur quel appareil, et ce qui a été fait. Les tentatives avec un mauvais code apparaissent en rouge.</p><div id="journal" class="hist-wrap"><p class="note">Chargement…</p></div></div>' : '') +
       '<div class="carte"><h2>Tests et remise à zéro</h2>' +
       '<div class="form-ligne"><label for="essai">Mode essai sur ' + (S.web ? 'cet appareil' : 'ce Mac') + '</label><input type="checkbox" id="essai"' + (modeEssai() ? ' checked' : '') + '><span class="note">Les séances faites ici ne sont pas enregistrées (pratique pour tester l\'app).</span></div>' +
       '<p class="note">' + (S.web ? 'La remise à zéro efface toutes les séances, sur tous les appareils.' : 'La remise à zéro efface toutes les séances, sur les 3 Mac et dans le Drive (les sauvegardes des jours précédents restent dans le dossier « sauvegardes »).') + ' Le prénom et les réglages sont conservés.</p>' +
       '<div class="ligne-btn"><button class="btn ko" id="raz">Remettre la progression à zéro</button></div></div>' +
       (S.web ? '<div class="carte"><h2>Progression partagée</h2><p>État : <b>' + esc(S.etat.message) + '</b></p>' +
-        (S.google ? '<p class="note">La progression est enregistrée dans votre Google Drive (fichier mathos-progression.json, dossier MATHOS). Ouvrez le même lien MathOS sur les Mac et le téléphone : tout est commun automatiquement.</p>'
-          : '<p class="note">La progression est enregistrée en ligne avec la page : ouvrez le même lien MathOS sur les Mac et le téléphone, avec le même compte claude.ai, et tout est commun automatiquement.</p>') +
+        (S.google ? '<p class="note">La progression est enregistrée dans votre Google Drive (fichier mathos-progression.json, dossier MATHOS). Ouvrez le même lien Mathos sur les Mac et le téléphone : tout est commun automatiquement.</p>'
+          : '<p class="note">La progression est enregistrée en ligne avec la page : ouvrez le même lien Mathos sur les Mac et le téléphone, avec le même compte claude.ai, et tout est commun automatiquement.</p>') +
         '<h3>Sauvegarde et transfert</h3><div class="ligne-btn">' + (S.google ? '' : '<button class="btn sec" id="exp">Exporter la progression</button>') + '<label class="btn sec" style="display:inline-block">Importer un fichier<input type="file" id="imp" accept=".json" class="cache"></label></div>' +
         '<p class="note">« Importer » permet de reprendre les séances faites avec la version Mac (fichier progression.json du Drive).</p></div>' :
       '<div class="carte"><h2>Synchronisation Google Drive</h2>' +
       '<p>État : <b>' + esc(S.etat.message) + '</b>' + (S.dossierNom ? ' — dossier « ' + esc(S.dossierNom) + ' »' : '') + '</p>' +
       (S.compatible ?
-        '<p class="note">Sur chaque Mac, ouvrez MathOS avec Google Chrome et choisissez le dossier <b>MathOS</b> qui se trouve dans Google Drive (Mon Drive). La progression est enregistrée dans le fichier progression.json de ce dossier, avec une sauvegarde quotidienne dans « sauvegardes ».</p>' +
+        '<p class="note">Sur chaque Mac, ouvrez Mathos avec Google Chrome et choisissez le dossier <b>Mathos</b> qui se trouve dans Google Drive (Mon Drive). La progression est enregistrée dans le fichier progression.json de ce dossier, avec une sauvegarde quotidienne dans « sauvegardes ».</p>' +
         '<div class="ligne-btn"><button class="btn" id="choisir">' + (S.dossierNom ? 'Changer de dossier' : 'Choisir le dossier Drive') + '</button>' + (S.dossierNom ? '<button class="btn sec" id="syncnow">Synchroniser maintenant</button>' : '') + '</div>'
         : '<p class="note">Ce navigateur ne permet pas l\'accès direct au dossier Drive. Utilisez Google Chrome, ou les boutons ci-dessous pour transférer la progression à la main.</p>') +
       '<h3>Transfert manuel (secours)</h3><div class="ligne-btn"><button class="btn sec" id="exp">Exporter la progression</button><label class="btn sec" style="display:inline-block">Importer un fichier<input type="file" id="imp" accept=".json" class="cache"></label></div></div>');
