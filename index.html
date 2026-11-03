@@ -8,24 +8,24 @@
 <link rel="apple-touch-icon" href="icone-192.png">
 <style>
 :root {
-  --fond: #f6f4ef; --carte: #ffffff; --encre: #1f2430; --encre2: #5b6170; --muet: #8a8f9c;
+  --fond: #f6f4ef; --carte: #ffffff; --encre: #1f2430; --encre2: #464b57; --muet: #666b77;
   --ligne: #e3e0d8; --accent: #2f6fdb; --accent-doux: #e6eefc; --accent-encre: #fff;
   --ok: #1f8a4c; --ok-doux: #e3f4ea; --ko: #c2402f; --ko-doux: #fbe9e6; --att: #b7791f; --att-doux: #fbf1df;
   --ombre: 0 1px 2px rgba(0,0,0,.05), 0 4px 16px rgba(0,0,0,.05);
 }
 @media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) {--fond: #16181d; --carte: #20232a; --encre: #eceef2; --encre2: #b4b8c3; --muet: #868b97;
+  :root:not([data-theme="light"]) {--fond: #16181d; --carte: #20232a; --encre: #eceef2; --encre2: #cdd0d8; --muet: #a6aab4;
     --ligne: #333741; --accent: #6b9bf0; --accent-doux: #243150; --accent-encre: #0e1320;
     --ok: #4fc282; --ok-doux: #1d3527; --ko: #ef7a68; --ko-doux: #3d2420; --att: #e2a84c; --att-doux: #3a2f1b;
     --ombre: 0 1px 2px rgba(0,0,0,.3); color-scheme: dark; }
 }
-:root[data-theme="dark"] {--fond: #16181d; --carte: #20232a; --encre: #eceef2; --encre2: #b4b8c3; --muet: #868b97;
+:root[data-theme="dark"] {--fond: #16181d; --carte: #20232a; --encre: #eceef2; --encre2: #cdd0d8; --muet: #a6aab4;
     --ligne: #333741; --accent: #6b9bf0; --accent-doux: #243150; --accent-encre: #0e1320;
     --ok: #4fc282; --ok-doux: #1d3527; --ko: #ef7a68; --ko-doux: #3d2420; --att: #e2a84c; --att-doux: #3a2f1b;
     --ombre: 0 1px 2px rgba(0,0,0,.3); color-scheme: dark; }
 * { box-sizing: border-box; }
 body { margin: 0; background: var(--fond); color: var(--encre);
-  font: 17px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif; }
+  font: 18px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif; }
 button { font: inherit; cursor: pointer; }
 .app { max-width: 920px; margin: 0 auto; padding-block: 16px 60px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
 header.barre { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 20px; }
@@ -126,6 +126,8 @@ body.parents { --accent: #6b4fbf; --accent-doux: #efe9fb; --accent-encre: #fff; 
 table.hist tr.cliquable { cursor: pointer; } table.hist tr.cliquable:hover td { background: var(--accent-doux); }
 table.hist td.voir { color: var(--accent); font-weight: 600; white-space: nowrap; text-align: right; }
 .txt-ok { color: var(--ok); } .txt-ko { color: var(--ko); }
+.grille.deux { grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); margin-bottom: 16px; }
+.tuile.grande { padding: 26px; border-width: 2px; } .tuile.grande .ico { font-size: 40px; } .tuile.grande b { font-size: 22px; margin: 10px 0 6px; } .tuile.grande small { font-size: 15px; line-height: 1.45; }
 /* Accueil de Louise-Marie : la séance du jour en grand */
 .hero { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; border: 2px solid var(--accent); background: linear-gradient(135deg, var(--accent-doux), var(--carte) 70%); }
 .hero-txt b { display: block; font-size: 21px; margin: 2px 0; } .hero-bt { display: flex; gap: 10px; flex-wrap: wrap; }
@@ -190,6 +192,22 @@ label.coche { display: block; padding: 4px 0 4px 8px; font-size: 15px; } label.c
 .badge .b-ico { font-size: 22px; filter: grayscale(1); opacity: .45; }
 .badge.obtenu { border-style: solid; border-color: var(--accent); background: var(--accent-doux); color: var(--encre); }
 .badge.obtenu .b-ico { filter: none; opacity: 1; } .fig { max-width: 100%; height: auto; }
+/* Lisibilité : textes secondaires plus grands et plus contrastés, pour Louise-Marie comme pour les parents */
+.note { font-size: 16px; line-height: 1.5; } .aide { font-size: 15px; color: var(--encre2); }
+.entete-q { font-size: 16px; } .kpi .t { font-size: 15px; line-height: 1.35; } .kpi .v { font-size: 30px; }
+.niveau { font-size: 15px; } table.hist { font-size: 16px; } table.hist th, table.hist td { padding: 10px 8px; }
+.barre-theme, .plan-mois, label.coche, .badge { font-size: 16px; } .format-col .barre-theme { font-size: 15px; }
+.tuile small { font-size: 16px; line-height: 1.45; } .tuile b { font-size: 19px; } .tuile.grande small { font-size: 17px; } .tuile.grande b { font-size: 23px; }
+.pastille, .bandeau-parents { font-size: 14px; } .bulle { font-size: 15px; } .graph text { font-size: 13px; fill: var(--encre2); }
+nav button { font-size: 17px; padding: 8px 12px; } .fig .lbl { font-size: 14px; } .fig .lbl.b { font-size: 17px; }
+.enonce small { font-size: 17px; } .retour { font-size: 18px; line-height: 1.55; } .erreur-item { line-height: 1.55; }
+h2 { font-size: 21px; } .sous { font-size: 18px; }
+details.plus { margin: 0 0 16px; } details.plus > summary { cursor: pointer; font-weight: 700; color: var(--accent); padding: 12px 16px; border: 1px dashed var(--ligne); border-radius: 12px; background: var(--carte); margin-bottom: 12px; }
+details.plus[open] > summary { margin-bottom: 16px; }
+@media (max-width: 640px) {
+  .enonce { font-size: 21px; } nav button { font-size: 16px; padding: 7px 9px; } .kpi .v { font-size: 25px; }
+  table.hist { font-size: 15px; } .tuile.grande { padding: 20px; }
+}
 </style></head>
 <body>
 <div class="app">
@@ -2749,8 +2767,8 @@ window.FICHES = {
   var profil = null;
   function profilDirect() { try { return localStorage.getItem('mathos.profilDirect') === '1'; } catch (e) { return false; } }
   var MENUS = {
-    eleve: [['accueil', 'Accueil'], ['progres', 'Mes progrès'], ['fiches', 'Mes fiches'], ['regles', 'Règles de l\'épreuve']],
-    parent: [['accueil', 'Suivi'], ['progres', 'Statistiques'], ['fiches', 'Fiches'], ['regles', 'Règles'], ['reglages', 'Réglages']]
+    eleve: [['accueil', 'Accueil'], ['progres', 'Mes progrès'], ['fiches', 'Fiches'], ['regles', 'Règles']],
+    parent: [['accueil', 'Accueil'], ['resultats', 'Résultats'], ['regles', 'Règles'], ['reglages', 'Réglages']]
   };
   function majNav() {
     var nav = document.querySelector('header nav');
@@ -2816,15 +2834,16 @@ window.FICHES = {
   function aller(v, param) {
     arreterMinuteur(); seance = null;
     if (!profil && v !== 'profil') v = 'profil';
-    if (profil === 'eleve' && (v === 'reglages' || v === 'seance')) v = 'accueil';
+    if (profil === 'eleve' && (v === 'reglages' || v === 'seance' || v === 'avec' || v === 'resultats')) v = 'accueil';
     if (v === 'seance') precedente = vueCourante === 'seance' ? precedente : vueCourante;
     vueCourante = v;
     document.body.classList.toggle('parents', profil === 'parent');
     document.querySelectorAll('nav button').forEach(function (b) { b.classList.toggle('actif', b.getAttribute('data-nav') === v); });
-    ({ profil: vueProfil, accueil: vueAccueil, progres: vueProgres, regles: vueRegles, reglages: vueReglages, fiches: vueFiches, seance: function () { vueSeance(param); } })[v]();
+    ({ profil: vueProfil, accueil: vueAccueil, progres: vueProgres, regles: vueRegles, reglages: vueReglages, fiches: vueFiches, seance: function () { vueSeance(param); },
+       avec: function () { vueAccueilParents('avec'); }, resultats: function () { vueAccueilParents('resultats'); } })[v]();
     window.scrollTo(0, 0);
   }
-  function rafraichir() { if (!seance && (vueCourante === 'accueil' || vueCourante === 'progres')) aller(vueCourante); }
+  function rafraichir() { if (!seance && (vueCourante === 'accueil' || vueCourante === 'progres' || vueCourante === 'resultats')) aller(vueCourante); }
   window.addEventListener('focus', function () { if (S.dossierNom) S.synchroniser().then(rafraichir); });
 
   // =====================================================================
@@ -2868,9 +2887,8 @@ window.FICHES = {
 
     html += '<h2 class="titre-section">Autres entraînements</h2><div class="grille">' +
       tuile('difficultes', '🔁', 'Revoir mes difficultés', revoir.length ? revoir.length + ' notion(s) à retravailler' : 'Aucune difficulté en cours 🎉') +
-      tuile('epreuve', '⏱️', 'Épreuve blanche', '9 questions · 20 minutes · comme le jour J') +
-      tuile('sujet', '📄', 'Sujets type brevet', '7 vrais sujets 2026 et ' + NB_SUJETS_TYPES + ' sujets inventés') +
-      tuile('theme', '📚', 'Travailler un thème', 'Choisir un chapitre précis') + '</div>';
+      tuile('sujet', '⏱️', 'Épreuve type brevet', '20 minutes · note sur 6') +
+      tuile('theme', '📚', 'Travailler un thème', 'Choisir un chapitre') + '</div>';
 
     $vue.innerHTML = html;
     $vue.querySelectorAll('[data-mode]').forEach(function (b) { b.onclick = function () { configurer(b.getAttribute('data-mode')); }; });
@@ -2918,7 +2936,7 @@ window.FICHES = {
     l.push('📆 ' + Math.min(nbSem, obj) + ' séance' + (nbSem > 1 ? 's' : '') + ' sur ' + obj + ' prévues cette semaine' + (nbSem >= obj ? ' ✅ objectif atteint !' : '') +
       (serie ? ' · 🔥 ' + serie + ' jour' + (serie > 1 ? 's' : '') + ' de suite' : '') + ' · note estimée <b>' + E.f(noteEstimee()) + ' / 6</b>.');
     if (!tot) l.unshift('C\'est une nouvelle semaine : une petite séance pour bien la commencer ?');
-    return '<h2>Ma semaine</h2>' + l.map(function (x) { return '<p class="ligne-sem">' + x + '</p>'; }).join('');
+    return '<h2>Ma semaine</h2>' + l.slice(0, 2).map(function (x) { return '<p class="ligne-sem">' + x + '</p>'; }).join('');
   }
 
   // Plan de l'année : de septembre au brevet, chaque mois a ses thèmes ; les deux derniers mois sont réservés aux sujets type brevet
@@ -2947,9 +2965,8 @@ window.FICHES = {
     plan.forEach(function (x) { if (x.mois < m.mois) x.themes.forEach(function (id) { if (maitriseTheme(et, id) < 0.5) retard.push(id); }); });
     return {
       titre: m.themes.map(function (id) { return THEME[id].icone + ' ' + THEME[id].nom; }).join(' et '),
-      texte: m.themes.map(function (id) { return THEME[id].nom + ' : ' + Math.round(100 * maitriseTheme(et, id)) + ' % des notions validées'; }).join(' · ') +
-        (retard.length ? '<br>À rattraper des mois précédents : ' + retard.slice(0, 4).map(function (id) { return THEME[id].nom; }).join(', ') + '.' : ''),
-      boutons: m.themes.concat(retard.slice(0, 2)).map(function (id, k) { return '<button class="btn' + (k < m.themes.length ? '' : ' sec') + '" data-plan="' + id + '">' + THEME[id].icone + ' ' + THEME[id].nom + '</button>'; }).join('')
+      texte: retard.length ? 'À rattraper aussi : ' + retard.slice(0, 3).map(function (id) { return THEME[id].nom; }).join(', ') + ' (dans « Travailler un thème »).' : 'Le plan complet est dans « Mes progrès ».',
+      boutons: m.themes.map(function (id) { return '<button class="btn" data-plan="' + id + '">' + THEME[id].icone + ' ' + THEME[id].nom + '</button>'; }).join('')
     };
   }
   function planHTML() {
@@ -2978,7 +2995,8 @@ window.FICHES = {
   }
   function brancherSeances() { $vue.querySelectorAll('[data-seance]').forEach(function (tr) { tr.onclick = function () { aller('seance', tr.getAttribute('data-seance')); }; }); }
 
-  function vueAccueilParents() {
+  // Espace parents en trois pages : l'accueil (deux grandes tuiles), « séance avec elle » et « résultats »
+  function vueAccueilParents(partie) {
     var et = etatNotions(), r = D().reglages, ss = D().seances, p = prenom();
     var jours = Math.ceil((new Date(r.dateBrevet + 'T08:00:00') - new Date()) / 864e5);
     var derniere = ss[ss.length - 1];
@@ -2990,7 +3008,7 @@ window.FICHES = {
     var joursSans = derniere ? Math.floor((Date.now() - new Date(derniere.debut).getTime()) / 864e5) : null;
 
     var html = '<div class="bandeau-parents">🔒 Espace parents</div>' +
-      '<h1>Suivi de ' + esc(p) + '</h1><p class="sous">' + (jours > 0 ? 'Brevet dans <b>' + jours + ' jours</b>. ' : '') +
+      '<h1>' + (partie === 'avec' ? 'Faire une épreuve avec ' + esc(p) : partie === 'resultats' ? 'Résultats de ' + esc(p) : 'Que voulez-vous faire ?') + '</h1><p class="sous">' + (jours > 0 ? 'Brevet dans <b>' + jours + ' jours</b>. ' : '') +
       (derniere ? 'Dernière séance : <b>' + dateCourte(derniere.debut) + '</b>' + (derniere.poste ? ' sur « ' + esc(derniere.poste) + ' »' : '') + '.' : 'Aucune séance enregistrée pour l\'instant.') + '</p>';
 
     // Points d'attention
@@ -2998,43 +3016,52 @@ window.FICHES = {
     if (modeEssai()) alertes.push('🧪 Le <b>mode essai</b> est activé sur cet appareil : les séances faites ici ne sont pas enregistrées.');
     if (joursSans !== null && joursSans >= 3) alertes.push('⏰ Aucune séance depuis <b>' + joursSans + ' jours</b>.');
     if (sem.length < objectifHebdo() && new Date().getDay() >= 5) alertes.push('🎯 Objectif de la semaine pas encore atteint : ' + sem.length + ' séance(s) sur ' + objectifHebdo() + '.');
-    html += '<div id="alertes">' + (alertes.length ? '<div class="carte alerte-carte"><h2>À surveiller</h2><ul>' + alertes.map(function (a) { return '<li>' + a + '</li>'; }).join('') + '</ul></div>' : '') + '</div>';
+    if (!partie) {
+      html += '<div class="grille deux">' +
+        '<button class="tuile grande" data-p="avec"><span class="ico">🗣️</span><b>Faire une épreuve avec ' + esc(p) + '</b><small>Épreuve blanche, sujet type brevet ou entraînement : vous posez les questions à l\'oral, ou elle répond à l\'écran.</small></button>' +
+        '<button class="tuile grande" data-p="resultats"><span class="ico">📊</span><b>Résultats de ' + esc(p) + '</b><small>Note estimée <strong>' + E.f(noteEstimee()) + ' / 6</strong> · ' + revoir.length + ' notion(s) à retravailler · ' +
+          sem.length + ' séance(s) cette semaine. Détail de chaque séance.</small></button></div>' +
+        '<div id="alertes">' + (alertes.length ? '<div class="carte alerte-carte"><h2>À surveiller</h2><ul>' + alertes.map(function (a) { return '<li>' + a + '</li>'; }).join('') + '</ul></div>' : '') + '</div>';
+    }
+    if (partie === 'avec') {
+      html += '<p class="note">Par défaut à l\'oral : vous lisez la question, vous voyez la réponse et notez juste ou faux. Vous pouvez aussi choisir « ' + esc(p) + ' à l\'ordinateur » à l\'étape suivante.</p><div class="grille">' +
+        tuile('sujet', '⏱️', 'Épreuve type brevet', '20 minutes · note sur 6, comme le jour J') +
+        tuile('jour', '🎯', 'Entraînement du jour', '10 questions selon ses difficultés') +
+        tuile('difficultes', '🔁', 'Revoir ses difficultés', revoir.length + ' notion(s) à retravailler') + '</div>' +
+        '<details class="plus"><summary>Autres séances</summary><div class="grille">' +
+        tuile('flash', '⚡', '5 minutes', '5 questions rapides') + tuile('theme', '📚', 'Un thème précis', 'Par exemple celui vu en classe') + '</div></details>';
+    }
+    if (partie === 'resultats') {
 
     // Chiffres clés
-    html += '<div class="kpis">' + kpi(Math.min(sem.length, 99) + ' / ' + objectifHebdo(), 'séances cette semaine') + kpi(tempsSem + ' min', 'de travail cette semaine') +
-      kpi(reussite(repSem), 'de réussite cette semaine') + kpi(E.f(noteEstimee()) + ' / 6', 'note estimée au brevet') +
-      kpi(nbM + ' / ' + E.GENERATEURS.length, 'notions maîtrisées') + kpi(serieJours() + ' j', 'série en cours') + '</div>';
+    html += '<div class="kpis">' + kpi(E.f(noteEstimee()) + ' / 6', 'note estimée au brevet') + kpi(Math.min(sem.length, 99) + ' / ' + objectifHebdo(), 'séances cette semaine (' + tempsSem + ' min)') +
+      kpi(reussite(repSem), 'de réussite cette semaine') + kpi(nbM + ' / ' + E.GENERATEURS.length, 'notions maîtrisées') + '</div>';
 
     // Notions à retravailler
     html += '<div class="carte"><h2>Notions à retravailler (' + revoir.length + ')</h2>';
     if (!revoir.length) html += '<p class="note">Aucune notion en difficulté pour le moment.</p>';
-    revoir.slice(0, 8).forEach(function (e) {
+    revoir.slice(0, 5).forEach(function (e) {
       var er = e.erreurs[0];
       html += '<div class="notion-parent"><div><b>' + THEME[e.theme].icone + ' ' + esc(e.nom) + '</b> <span class="niveau a">' + e.serie + '/3 bonnes réponses pour la valider</span></div>' +
         (er ? '<div class="note">Dernière erreur (' + dateCourte(er.date) + ') : ' + (er.r.r ? 'elle a répondu <b>' + er.r.r + '</b>, attendu <b>' + er.r.br + '</b>' : 'attendu <b>' + er.r.br + '</b>') +
           (er.r.d ? '<br>🔎 ' + er.r.d : '') + '</div>' : '') + '</div>';
     });
-    html += (revoir.length > 8 ? '<p class="note">… et ' + (revoir.length - 8) + ' autre(s) dans le carnet des difficultés.</p>' : '') +
-      '<div class="ligne-btn"><button class="btn sec" data-aller="progres">Carnet complet et statistiques ›</button>' +
-      (revoir.length ? '<button class="btn" data-lancer="difficultes">🗣️ Travailler ces notions avec elle</button>' : '') + '</div></div>';
+    html += (revoir.length > 5 ? '<p class="note">… et ' + (revoir.length - 5) + ' autre(s) dans les statistiques détaillées.</p>' : '') +
+      (revoir.length ? '<div class="ligne-btn"><button class="btn" data-lancer="difficultes">🗣️ Travailler ces notions avec elle</button></div>' : '') + '</div>';
 
     // Dernières séances
     html += '<div class="carte"><h2>Dernières séances</h2><p class="note">Cliquez sur une séance pour voir chacune de ses réponses.</p>';
     html += ss.length ? '<div class="hist-wrap"><table class="hist"><tr><th>Date</th><th>Séance</th><th>Réponses</th><th>Score</th><th>Appareil</th><th></th></tr>' +
-      ss.slice().reverse().slice(0, 8).map(ligneSeance).join('') + '</table></div>' : '<p class="note">Aucune séance pour l\'instant.</p>';
+      ss.slice().reverse().slice(0, 5).map(ligneSeance).join('') + '</table></div>' : '<p class="note">Aucune séance pour l\'instant.</p>';
     html += '</div>';
+    }
 
-    // Séances avec elle
-    html += '<div class="carte"><h2>Faire une séance avec ' + esc(p) + '</h2><p class="note">Par défaut à l\'oral : vous lisez la question, vous voyez la réponse et notez juste ou faux. Vous pouvez aussi choisir « à l\'ordinateur ».</p><div class="grille">' +
-      tuile('jour', '🎯', 'Entraînement du jour', '10 questions selon ses difficultés') + tuile('difficultes', '🔁', 'Revoir ses difficultés', revoir.length + ' notion(s) à retravailler') +
-      tuile('sujet', '📄', 'Sujet type brevet', '20 minutes, note sur 6') + tuile('theme', '📚', 'Un thème précis', 'Par exemple celui vu en classe') + '</div></div>';
+    if (partie === 'resultats') html += '<div class="ligne-btn"><button class="btn sec" data-aller="progres">📊 Toutes les statistiques</button></div>';
 
-    // Raccourcis
-    html += '<div class="carte"><h2>Réglages et contrôle</h2><div class="ligne-btn"><button class="btn sec" data-aller="reglages">⚙️ Objectif, notions vues en classe, prénom…</button>' +
-      '<button class="btn sec" data-aller="reglages" data-ancre="journal">🕒 Journal des connexions</button><button class="btn sec" data-aller="progres">📊 Statistiques détaillées</button></div></div>';
-
+    if (partie) html += '<div class="ligne-btn"><button class="btn sec" data-aller="accueil">‹ Retour à l\'accueil parents</button></div>';
     $vue.innerHTML = html;
     brancherSeances();
+    $vue.querySelectorAll('[data-p]').forEach(function (b) { b.onclick = function () { aller(b.getAttribute('data-p')); }; });
     $vue.querySelectorAll('[data-mode]').forEach(function (b) { b.onclick = function () { configurer(b.getAttribute('data-mode'), true); }; });
     $vue.querySelectorAll('[data-lancer]').forEach(function (b) { b.onclick = function () { configurer(b.getAttribute('data-lancer'), true); }; });
     $vue.querySelectorAll('[data-aller]').forEach(function (b) {
@@ -3088,7 +3115,7 @@ window.FICHES = {
     var dernier = 'ecran', format = 'seule';
     try { dernier = localStorage.getItem('mathos.repondre') || 'ecran'; format = localStorage.getItem('mathos.format') || 'seule'; } catch (e) {}
     if (oralParDefaut) dernier = 'oral';
-    var titres = { jour: 'Entraînement du jour', flash: '⚡ 5 minutes', epreuve: 'Épreuve blanche', difficultes: 'Revoir mes difficultés', theme: 'Travailler un thème', sujet: 'Sujets type brevet' };
+    var titres = { jour: 'Entraînement du jour', flash: '⚡ 5 minutes', epreuve: 'Épreuve blanche', difficultes: 'Revoir mes difficultés', theme: 'Travailler un thème', sujet: 'Épreuve type brevet' };
     var html = '<div class="carte"><h2>' + titres[mode] + '</h2>';
     if (mode === 'epreuve') html += '<p class="note">Format des sujets zéro du ministère : 9 questions sans calculatrice en 20 minutes, 6 questions à 0,5 point puis 3 questions à 1 point (note sur 6). Les corrections sont données à la fin, comme au brevet.</p>';
     if (mode === 'sujet') {
@@ -3099,10 +3126,11 @@ window.FICHES = {
         return '<button data-sujet="' + x.id + '"' + (on ? ' class="on"' : '') + '>' + x.nom.replace('Sujet type ', '') + (n !== undefined ? ' ✓ ' + E.f(n) + '/6' : '') + '</button>';
       };
       var types = []; for (var k = 1; k <= NB_SUJETS_TYPES; k++) types.push(sujetType(k));
-      html += '<p class="note">20 minutes, sans calculatrice, note sur 6. Les nombres changent à chaque fois ; ✓ indique la meilleure note déjà obtenue.</p>' +
-        '<h3>Vrais sujets 2026</h3><p class="note">Mêmes notions que le vrai sujet, dans le même ordre.</p><div class="themes-sel">' + SUJETS_2026.map(function (x, i) { return bouton(x, i === 0); }).join('') + '</div>' +
+      html += '<p class="note">9 questions, 20 minutes, sans calculatrice, note sur 6. Les corrections sont données à la fin, comme au brevet.</p>' +
+        '<details class="plus"><summary>Choisir un sujet précis (vrais sujets 2026, sujets types)</summary><p class="note">Les nombres changent à chaque fois ; ✓ indique la meilleure note déjà obtenue.</p>' +
+        '<h3>Vrais sujets 2026</h3><p class="note">Mêmes notions que le vrai sujet, dans le même ordre.</p><div class="themes-sel">' + SUJETS_2026.map(function (x) { return bouton(x, false); }).join('') + '</div>' +
         '<h3>Sujets types inventés</h3><p class="note">' + NB_SUJETS_TYPES + ' sujets construits sur le même plan que ceux de 2026 (nombres, puissances, statistiques, probabilités, pourcentages, calcul littéral, deux questions de géométrie, grandeurs), avec d\'autres combinaisons de notions.</p>' +
-        '<div class="themes-sel">' + types.map(function (x) { return bouton(x, false); }).join('') + '<button data-sujet="hasard">🎲 Un sujet au hasard</button></div>';
+        '<div class="themes-sel">' + types.map(function (x) { return bouton(x, false); }).join('') + '<button data-sujet="hasard">🎲 Un sujet au hasard</button></div></details>';
     }
     if (mode === 'theme') {
       html += '<h3>Quel thème ?</h3><div class="themes-sel">' + E.THEMES.map(function (t, i) {
@@ -3112,7 +3140,7 @@ window.FICHES = {
       html += '<h3>Format des réponses</h3><div class="choix-mode">' +
         '<input type="radio" name="format" id="f-seule" value="seule"' + (format === 'seule' ? ' checked' : '') + '><label for="f-seule"><b>🖊️ Je trouve seule</b><br><small class="note">Aucune proposition de réponse : on écrit son résultat. Correction et méthode tout de suite.</small></label>' +
         '<input type="radio" name="format" id="f-brevet" value="brevet"' + (format === 'brevet' ? ' checked' : '') + '><label for="f-brevet"><b>🎓 Conditions du brevet</b><br><small class="note">Comme les vrais sujets : QCM et réponses directes mélangés, chrono (2 min par question), corrections à la fin.</small></label></div>';
-    } else {
+    } else if (mode !== 'sujet') {
       html += '<p class="note">🎓 Format du brevet : QCM et réponses directes mélangés comme dans les vrais sujets, corrections à la fin.</p>';
     }
     // le mode oral se lance depuis l'espace parents ; dans l'espace de Louise-Marie, elle répond elle-même
@@ -3121,14 +3149,14 @@ window.FICHES = {
       '<input type="radio" name="rep" id="r-oral" value="oral"' + (dernier === 'oral' ? ' checked' : '') + '><label for="r-oral"><b>🗣️ À l\'oral avec un parent</b><br><small class="note">Le parent lit la question, affiche la réponse et note juste / faux.</small></label></div>';
     html += '<div class="ligne-btn"><button class="btn" id="go">Commencer</button><button class="btn sec" data-nav-local="accueil">Retour</button></div></div>';
     $vue.innerHTML = html;
-    var theme = E.THEMES[0].id, sujet = SUJETS_2026[0].id;
+    var theme = E.THEMES[0].id, sujet = null;   // sans choix : une épreuve blanche tirée au hasard
     $vue.querySelectorAll('[data-sujet]').forEach(function (b) {
       b.onclick = function () { $vue.querySelectorAll('[data-sujet]').forEach(function (x) { x.classList.remove('on'); }); b.classList.add('on'); sujet = b.getAttribute('data-sujet'); };
     });
     $vue.querySelectorAll('[data-theme]').forEach(function (b) {
       b.onclick = function () { $vue.querySelectorAll('[data-theme]').forEach(function (x) { x.classList.remove('on'); }); b.classList.add('on'); theme = b.getAttribute('data-theme'); };
     });
-    $vue.querySelector('[data-nav-local]').onclick = function () { aller('accueil'); };
+    $vue.querySelector('[data-nav-local]').onclick = function () { aller(profil === 'parent' ? 'avec' : 'accueil'); };
     document.getElementById('go').onclick = function () {
       var r0 = $vue.querySelector('input[name=rep]:checked'), rep = r0 ? r0.value : 'ecran';
       var fm = $vue.querySelector('input[name=format]:checked'), fmt = fm ? fm.value : 'brevet';
@@ -3434,23 +3462,13 @@ window.FICHES = {
     function taux(t) { return t.length ? pct(t.filter(function (r) { return r.ok; }).length / t.length) : '–'; }
 
     var html = (profil === 'parent' ? '<div class="bandeau-parents">🔒 Espace parents</div>' : '') + (profil === 'eleve' ? '<h1>Mes progrès</h1><p class="sous">' + esc(prenom()) + ', voici où tu en es. Continue comme ça !</p><p hidden>' : '<h1>Progrès de ' + esc(prenom()) + '</h1><p class="sous">') + (S.web ? 'Données communes à tous les appareils (Mac et téléphone).' : 'Données communes aux 3 Mac' + (S.dossierNom ? ' (dossier Drive « ' + esc(S.dossierNom) + ' »)' : ' — synchro Drive non active sur ce poste') + '.') + '</p>' +
-      '<div class="kpis">' +
-      kpi(toutes.length, 'questions travaillées') + kpi(taux(toutes), 'réussite globale') + kpi(taux(sem), 'réussite sur 7 jours') +
-      kpi(Object.keys(jours).length, 'jours d\'entraînement') + kpi(nbM + ' / ' + E.GENERATEURS.length, 'notions maîtrisées') + kpi(nbR, 'notions à retravailler') +
-      kpi(E.f(noteEstimee()) + ' / 6', 'note estimée au brevet') + kpi(meilleureSerie() + ' j', 'meilleure série') + '</div>';
-    // Bilan de la semaine en cours
-    var sem = seancesSemaine(), repSem = []; sem.forEach(function (s) { repSem = repSem.concat(s.rep || []); });
-    var tempsSem = sem.reduce(function (t, s) { return t + (s.duree || 0); }, 0);
-    html += '<div class="carte"><h2>Cette semaine</h2><p>' + sem.length + ' séance(s) sur un objectif de ' + objectifHebdo() + ', ' + Math.round(tempsSem / 60) + ' min de travail, ' +
-      repSem.length + ' questions dont ' + taux(repSem) + ' réussies.</p>' +
-      (function () {
-        var et2 = etatNotions(), frag = Object.keys(et2).map(function (k) { return et2[k]; }).filter(function (e) { return e.statut === 'revoir'; }).slice(0, 5);
-        return frag.length ? '<p class="note">À travailler en priorité : ' + frag.map(function (e) { return esc(e.nom); }).join(', ') + '.</p>' : '<p class="note">Aucune notion en difficulté pour l\'instant.</p>';
-      })() + '</div>';
+      '<div class="kpis">' + kpi(E.f(noteEstimee()) + ' / 6', 'note estimée au brevet') + kpi(nbM + ' / ' + E.GENERATEURS.length, 'notions maîtrisées') +
+      kpi(nbR, 'notions à retravailler') + kpi(taux(sem), 'réussite sur 7 jours') + '</div>';
     // Évolution de la note estimée, semaine après semaine
     html += '<div class="carte"><h2>Note estimée au brevet (partie automatismes)</h2><p class="note">Estimation sur 6 d\'après la réussite récente sur chaque notion, pondérée par sa fréquence dans les sujets 2026. Une notion jamais travaillée compte pour 40 %.</p><div class="graph" id="graph-note"></div></div>';
     // Badges
     html += planHTML();
+    html += '<details class="plus"><summary>🏅 Badges, épreuves blanches et réussite par thème</summary>';
     html += '<div class="carte"><h2>Badges</h2><div class="badges">' + badges().map(function (b) {
       return '<div class="badge' + (b[2] ? ' obtenu' : '') + '" title="' + esc(b[1]) + '"><span class="b-ico">' + b[0] + '</span><span>' + esc(b[1]) + '</span></div>'; }).join('') + '</div></div>';
 
@@ -3494,6 +3512,7 @@ window.FICHES = {
 
     // Carnet des difficultés
     var dif = Object.keys(et).map(function (k) { return et[k]; }).filter(function (e) { return e.statut === 'revoir'; }).sort(function (a, b) { return b.priorite - a.priorite; });
+    html += '</details>';
     html += '<div class="carte"><h2>Carnet des difficultés</h2>';
     if (!dif.length) html += '<p class="note">Aucune notion en difficulté pour le moment.</p>';
     dif.forEach(function (e) {
@@ -3508,6 +3527,7 @@ window.FICHES = {
     html += (dif.length ? '<div class="ligne-btn"><button class="btn" id="travDif">🔁 Travailler ces notions maintenant</button></div>' : '') + '</div>';
 
     // Toutes les notions
+    html += '<details class="plus"><summary>📋 Toutes les notions et historique des séances</summary>';
     html += '<div class="carte"><h2>Toutes les notions</h2>';
     E.THEMES.forEach(function (t) {
       html += '<h3>' + t.icone + ' ' + t.nom + '</h3>';
@@ -3526,7 +3546,7 @@ window.FICHES = {
       html += '<tr><td>' + dateCourte(s.debut) + '</td><td>' + NOMS[s.mode] + (s.sujet ? ' · ' + esc(s.sujet) : '') + (s.theme ? ' · ' + THEME[s.theme].nom : '') + (s.mode !== 'epreuve' && s.format ? ' · ' + (s.format === 'brevet' ? '🎓 brevet' : '🖊️ seule') : '') + '</td><td>' + (s.repondre === 'oral' ? '🗣️ oral' : '💻 écran') +
         '</td><td>' + s.score + '/' + s.total + (s.mode === 'epreuve' ? ' (' + E.f(sur6De(s)) + '/6)' : '') + '</td></tr>';
     });
-    html += '</table></div>' + (ss.length ? '' : '<p class="note">Aucune séance pour l\'instant.</p>') + '</div>';
+    html += '</table></div>' + (ss.length ? '' : '<p class="note">Aucune séance pour l\'instant.</p>') + '</div></details>';
     $vue.innerHTML = html;
     brancherSeances();
     if (epreuves.length) courbe(document.getElementById('graph'), epreuves);
