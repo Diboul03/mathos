@@ -2352,7 +2352,7 @@ window.FICHES = {
     e.id = 'ecran-code'; e.className = 'boite-fond';
     var nomActuel = ''; try { nomActuel = localStorage.getItem('mathos.poste') || ''; } catch (err) {}
     e.innerHTML = '<form class="boite"><h2>Mathos</h2><p>Entrez le code d\'accès pour ouvrir l\'entraînement.</p>' +
-      '<input id="code-acces" inputmode="numeric" autocomplete="off" maxlength="12" placeholder="Code d\'accès">' +
+      '<input id="code-acces" type="password" inputmode="numeric" autocomplete="off" maxlength="12" placeholder="Code d\'accès">' +
       '<p class="note" style="margin:12px 0 0">Nom de cet appareil (pour le journal des connexions) :</p>' +
       '<input id="code-appareil" autocomplete="off" maxlength="40" placeholder="ex. Téléphone de Louise-Marie" value="' + nomActuel.replace(/"/g, '&quot;') + '">' +
       '<p class="note" id="code-msg" style="min-height:1.2em"></p><div class="ligne-btn"><button class="btn" type="submit">Entrer</button></div></form>';
@@ -2471,7 +2471,8 @@ window.FICHES = {
       fond.className = 'boite-fond';
       fond.style.height = document.documentElement.scrollHeight + 'px';
       fond.innerHTML = '<div class="boite" role="dialog" aria-modal="true"><div>' + html + '</div>' +
-        (saisie ? '<input id="boite-saisie" autocomplete="off" placeholder="' + saisie + '">' : '') +
+        // un code (code parent) est masqué pendant la saisie
+        (saisie ? '<input id="boite-saisie" autocomplete="off"' + (/code/i.test(saisie) ? ' type="password" inputmode="numeric"' : '') + ' placeholder="' + saisie + '">' : '') +
         '<p class="note" id="boite-msg" style="min-height:1.2em;margin:8px 0 0"></p>' +
         '<div class="ligne-btn">' + boutons.map(function (b, i) { return '<button class="btn ' + (b[2] || '') + '" data-i="' + i + '">' + b[0] + '</button>'; }).join('') + '</div></div>';
       document.body.appendChild(fond);
@@ -3540,7 +3541,7 @@ window.FICHES = {
     // Historique
     html += '<div class="carte"><h2>Historique des séances</h2><div class="hist-wrap"><table class="hist"><tr><th>Date</th><th>Séance</th>' + (profil === 'parent' ? '<th>Score</th><th></th>' : '<th>Réponses</th><th>Score</th>') + '</tr>';
     var NOMS = { jour: 'Entraînement du jour', flash: '⚡ 5 minutes', epreuve: 'Épreuve blanche', difficultes: 'Difficultés', theme: 'Thème' };
-    ss.slice().reverse().slice(0, profil === 'parent' ? 200 : 40).forEach(function (s) {
+    ss.slice().reverse().slice(0, profil === 'parent' ? ss.length : 40).forEach(function (s) {
       if (profil === 'parent') { html += ligneSeance(s); return; }
       html += '<tr><td>' + dateCourte(s.debut) + '</td><td>' + NOMS[s.mode] + (s.sujet ? ' · ' + esc(s.sujet) : '') + (s.theme ? ' · ' + THEME[s.theme].nom : '') + (s.mode !== 'epreuve' && s.format ? ' · ' + (s.format === 'brevet' ? '🎓 brevet' : '🖊️ seule') : '') + '</td><td>' + (s.repondre === 'oral' ? '🗣️ oral' : '💻 écran') +
         '</td><td>' + s.score + '/' + s.total + (s.mode === 'epreuve' ? ' (' + E.f(sur6De(s)) + '/6)' : '') + '</td></tr>';

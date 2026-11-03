@@ -1,5 +1,5 @@
-/* Mathos — fonctionnement hors connexion (version 202611031902) */
-var CACHE = 'mathos-202611031902';
+/* Mathos — fonctionnement hors connexion (version 202611031942) */
+var CACHE = 'mathos-202611031942';
 var FICHIERS = ['./', 'index.html', 'manifest.webmanifest', 'icone-192.png', 'icone-512.png'];
 self.addEventListener('install', function (e) { e.waitUntil(caches.open(CACHE).then(function (c) { return c.addAll(FICHIERS); })); self.skipWaiting(); });
 self.addEventListener('activate', function (e) {
