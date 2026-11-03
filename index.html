@@ -208,6 +208,17 @@ details.plus[open] > summary { margin-bottom: 16px; }
   .enonce { font-size: 21px; } nav button { font-size: 16px; padding: 7px 9px; } .kpi .v { font-size: 25px; }
   table.hist { font-size: 15px; } .tuile.grande { padding: 20px; }
 }
+/* Barre du haut épurée : point vert quand tout va bien, texte seulement en cas de souci */
+.pastille.discret { padding: 6px; border: 0; background: none; } .pastille.discret span { display: none; }
+header.barre { position: relative; } nav .profil-bt { font-size: 18px; position: absolute; right: 0; top: 0; } header.barre .logo { padding-right: 70px; } .btn.gros { white-space: nowrap; }
+.puce { border: 1px solid var(--ligne); background: var(--carte); color: var(--encre); border-radius: 999px; padding: 5px 12px; font-size: 15px; margin-top: 6px; }
+.hero { flex-direction: column; align-items: stretch; } .hero-txt { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+.hero-txt b { font-size: 22px; margin: 0; } .hero-bt .btn.gros:first-child { flex: 2; } .hero-bt .btn.gros { flex: 1; }
+.sem-ligne { margin: 4px 0 0; color: var(--encre2); }
+.grille.trois { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; } .grille.trois .tuile { padding: 14px; text-align: center; }
+.grille.trois .tuile b { font-size: 17px; } .grille.trois .tuile small { font-size: 14px; }
+.bandeau-essai { background: #d9480f; color: #fff; text-align: center; font-weight: 700; padding: 6px 10px; font-size: 15px; }
+@media (max-width: 640px) { .hero-bt { flex-wrap: nowrap; } .hero-bt, .hero-bt .btn { width: auto; } .grille.trois .tuile b { font-size: 15px; } .grille.trois .tuile .ico { font-size: 22px; } }
 </style></head>
 <body>
 <div class="app">
@@ -2441,7 +2452,7 @@ window.FICHES = {
 
   function D() { return S.donnees; }
   function prenom() { return D().reglages.prenom || 'Louise-Marie'; }
-  function modeEssai() { try { return localStorage.getItem('mathos.essai') === '1'; } catch (e) { return false; } }
+  function modeEssai() { if (window.MATHOS_ESSAI) return true; try { return localStorage.getItem('mathos.essai') === '1'; } catch (e) { return false; } }
   function poste() { try { return localStorage.getItem('mathos.poste') || ''; } catch (e) { return ''; } }
   function esc(s) { return String(s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
   // Boîte de dialogue dans la page : boutons = [[libellé, valeur, classe]] ; saisie = texte attendu (optionnel)
@@ -2741,7 +2752,8 @@ window.FICHES = {
     var p = document.getElementById('pastille');
     p.className = 'pastille ' + etat.statut + (etat.statut === 'reconnecter' || etat.statut === 'local' || etat.statut === 'erreur' ? ' cliquable' : '');
     p.querySelector('span').textContent = etat.message;
-    p.title = etat.derniere ? 'Dernière synchro : ' + etat.derniere.toLocaleTimeString('fr-FR') : '';
+    p.classList.toggle('discret', etat.statut === 'ok' || etat.statut === 'sync');   // tout va bien : un simple point vert
+    p.title = etat.message + (etat.derniere ? ' (dernière synchro : ' + etat.derniere.toLocaleTimeString('fr-FR') + ')' : '');
   }
   S.surChangement(majPastille);
   document.getElementById('pastille').addEventListener('click', function () {
@@ -2767,13 +2779,13 @@ window.FICHES = {
   var profil = null;
   function profilDirect() { try { return localStorage.getItem('mathos.profilDirect') === '1'; } catch (e) { return false; } }
   var MENUS = {
-    eleve: [['accueil', 'Accueil'], ['progres', 'Mes progrès'], ['fiches', 'Fiches'], ['regles', 'Règles']],
+    eleve: [['accueil', 'Accueil'], ['progres', 'Progrès'], ['fiches', 'Fiches'], ['regles', 'Règles']],
     parent: [['accueil', 'Accueil'], ['resultats', 'Résultats'], ['regles', 'Règles'], ['reglages', 'Réglages']]
   };
   function majNav() {
     var nav = document.querySelector('header nav');
     nav.innerHTML = profil ? MENUS[profil].map(function (m) { return '<button data-nav="' + m[0] + '">' + m[1] + '</button>'; }).join('') +
-      '<button data-nav="profil" class="profil-bt" title="Changer de profil">' + (profil === 'parent' ? '🔒 Parents' : '👧 ' + esc(prenom())) + ' · changer</button>' : '';
+      '<button data-nav="profil" class="profil-bt" title="Changer de profil">' + (profil === 'parent' ? '🔒' : '👧') + ' ⇄</button>' : '';
   }
   function choisirProfil(p) {
     profil = p; majNav(); aller('accueil');
@@ -2791,8 +2803,8 @@ window.FICHES = {
     profil = null; majNav();
     if (S.oublierParent) S.oublierParent();
     $vue.innerHTML = '<div class="profils"><h1>Qui utilise Mathos ?</h1>' +
-      '<button class="tuile profil" id="p-eleve"><span class="ico">👧</span><b>' + esc(prenom()) + '</b><small>Mon entraînement et mes progrès</small></button>' +
-      '<button class="tuile profil" id="p-parent"><span class="ico">🔒</span><b>Parents</b><small>Tableau de bord, séances à l\'oral, réglages (code demandé)</small></button>' +
+      '<button class="tuile profil" id="p-eleve"><span class="ico">👧</span><b>' + esc(prenom()) + '</b></button>' +
+      '<button class="tuile profil" id="p-parent"><span class="ico">🔒</span><b>Parents</b><small>avec code</small></button>' +
       '<label class="coche"><input type="checkbox" id="p-direct"' + (profilDirect() ? ' checked' : '') + '> Sur cet appareil, ouvrir directement l\'espace de ' + esc(prenom()) + '</label></div>';
     document.getElementById('p-eleve').onclick = function () {
       try { localStorage.setItem('mathos.profilDirect', document.getElementById('p-direct').checked ? '1' : '0'); } catch (e) {}
@@ -2859,24 +2871,20 @@ window.FICHES = {
     var aujourdhui = D().seances.filter(function (s) { return jourLocal(s.debut) === jourLocal(new Date().toISOString()); });
     var fmt = formatPref();
     var html = (modeEssai() ? '<div class="retour neutre" style="margin:0 0 16px">🧪 <b>Mode essai activé sur ' + (S.web ? 'cet appareil' : 'ce Mac') + '</b> : les séances ne sont pas enregistrées. Demande à tes parents de le désactiver.</div>' : '') +
-      '<h1>Bonjour ' + esc(prenom()) + ' 👋</h1><p class="sous">' + (jours > 0 ? 'Brevet dans <b>' + jours + ' jours</b>.' : '') +
-      (aujourdhui.length ? ' Déjà ' + aujourdhui.length + ' séance' + (aujourdhui.length > 1 ? 's' : '') + ' aujourd\'hui, bravo !' : '') + '</p>';
+      '<h1>Bonjour ' + esc(prenom()) + ' 👋</h1>' + (jours > 0 ? '<p class="sous">Brevet dans <b>' + jours + ' jours</b></p>' : '');
 
     // l'action principale : la séance du jour, en un clic
-    html += '<div class="carte hero"><div class="hero-txt"><div class="note">' + (aujourdhui.length ? 'Encore une ?' : 'Ma séance du jour') + '</div>' +
-      '<b>10 questions choisies pour toi</b><div class="note">environ 10 minutes · ' + (fmt === 'brevet' ? '🎓 conditions du brevet' : '🖊️ je trouve seule') +
-      ' · <a href="#" id="chg-format">changer</a></div></div>' +
-      '<div class="hero-bt"><button class="btn gros" id="go-jour">▶ C\'est parti</button><button class="btn sec gros" id="go-flash">⚡ 5 minutes</button></div></div>';
-
-    // progrès de la semaine, en mots
-    html += '<div class="carte semaine-txt">' + progresEnMots(et) + '</div>';
+    html += '<div class="carte hero"><div class="hero-txt"><b>' + (aujourdhui.length ? 'Encore une séance ?' : 'Ma séance du jour') + '</b>' +
+      '<button class="puce" id="chg-format">' + (fmt === 'brevet' ? '🎓 Comme au brevet' : '🖊️ Je trouve seule') + ' ▾</button></div>' +
+      '<div class="hero-bt"><button class="btn gros" id="go-jour">▶ C\'est parti</button><button class="btn sec gros" id="go-flash">⚡ 5 min</button></div>' +
+      '<p class="sem-ligne">' + progresEnMots(et) + '</p></div>';
 
     // plan du mois
     var pm = planDuMois();
-    if (pm) html += '<div class="carte"><h2>📅 Ce mois-ci : ' + pm.titre + '</h2><p class="note">' + pm.texte + '</p><div class="ligne-btn">' + pm.boutons + '</div></div>';
+    if (pm) html += '<div class="carte"><h2>📅 Ce mois-ci</h2><div class="ligne-btn">' + pm.boutons + '</div></div>';
 
     if (S.web && S.etat.statut === 'local') {
-      html += '<div class="carte" style="border-color:var(--att)"><b>Progression non partagée</b><p class="note" style="margin:4px 0 0">Cet appareil n\'accède pas à la progression en ligne' + (S.google ? '' : ' (connexion internet ou compte claude.ai)') + '. Les séances sont gardées ici et seront envoyées dès que la connexion revient.</p></div>';
+      html += '<div class="carte" style="border-color:var(--att)"><b>Hors connexion</b><p class="note" style="margin:4px 0 0">Les séances seront envoyées au retour d\'internet.</p></div>';
     }
     if (!S.web && !S.dossierNom && S.compatible && S.etat.statut !== 'ok') {
       html += '<div class="carte" style="border-color:var(--att)"><b>Synchronisation Google Drive</b><p class="note" style="margin:4px 0 10px">' +
@@ -2885,10 +2893,9 @@ window.FICHES = {
         '</p><button class="btn" data-act="connecter">' + (S.etat.statut === 'reconnecter' ? 'Reconnecter Google Drive' : 'Choisir le dossier Mathos sur le Drive') + '</button></div>';
     }
 
-    html += '<h2 class="titre-section">Autres entraînements</h2><div class="grille">' +
-      tuile('difficultes', '🔁', 'Revoir mes difficultés', revoir.length ? revoir.length + ' notion(s) à retravailler' : 'Aucune difficulté en cours 🎉') +
-      tuile('sujet', '⏱️', 'Épreuve type brevet', '20 minutes · note sur 6') +
-      tuile('theme', '📚', 'Travailler un thème', 'Choisir un chapitre') + '</div>';
+    html += '<div class="grille trois">' +
+      tuile('difficultes', '🔁', 'Mes difficultés', revoir.length ? revoir.length + ' à revoir' : '') +
+      tuile('sujet', '⏱️', 'Épreuve brevet', '') + tuile('theme', '📚', 'Un thème', '') + '</div>';
 
     $vue.innerHTML = html;
     $vue.querySelectorAll('[data-mode]').forEach(function (b) { b.onclick = function () { configurer(b.getAttribute('data-mode')); }; });
@@ -2898,8 +2905,8 @@ window.FICHES = {
     document.getElementById('go-flash').onclick = function () { demarrer('flash', 'ecran', null, null, fmt); };
     document.getElementById('chg-format').onclick = function (e) {
       e.preventDefault();
-      boite('<b>Format des réponses</b><p class="note"><b>🖊️ Je trouve seule</b> : aucune proposition, correction et méthode tout de suite.<br><b>🎓 Conditions du brevet</b> : QCM et réponses directes mélangés, chrono, corrections à la fin.</p>',
-        [['🖊️ Je trouve seule', 'seule', fmt === 'seule' ? '' : 'sec'], ['🎓 Brevet', 'brevet', fmt === 'brevet' ? '' : 'sec']]).then(function (r) {
+      boite('<b>Comment répondre ?</b><p class="note">🖊️ <b>Seule</b> : correction tout de suite.<br>🎓 <b>Brevet</b> : QCM, chrono, correction à la fin.</p>',
+        [['🖊️ Seule', 'seule', fmt === 'seule' ? '' : 'sec'], ['🎓 Brevet', 'brevet', fmt === 'brevet' ? '' : 'sec']]).then(function (r) {
         if (r === 'seule' || r === 'brevet') { try { localStorage.setItem('mathos.format', r); } catch (e2) {} vueAccueil(); }
       });
     };
@@ -2926,17 +2933,17 @@ window.FICHES = {
     });
     var proches = Object.keys(et).map(function (k) { return et[k]; }).filter(function (e) { return (e.statut === 'revoir' || e.statut === 'encours') && e.serie === 2; });
     var nbSem = seancesSemaine().length, obj = objectifHebdo(), serie = serieJours(), l = [];
-    if (valides.length) l.push('🌟 Tu as validé <b>' + valides.length + ' notion' + (valides.length > 1 ? 's' : '') + '</b> cette semaine : ' + valides.slice(0, 4).map(function (e) { return esc(e.nom); }).join(', ') + (valides.length > 4 ? '…' : '') + '.');
+    if (valides.length) l.push('🌟 <b>' + valides.length + ' notion' + (valides.length > 1 ? 's' : '') + ' validée' + (valides.length > 1 ? 's' : '') + '</b> cette semaine !');
     if (tot) {
       var ec = totP >= 5 ? Math.round(100 * bon / tot) - Math.round(100 * bonP / totP) : null;
       l.push('✅ <b>' + bon + ' bonne' + (bon > 1 ? 's' : '') + ' réponse' + (bon > 1 ? 's' : '') + '</b> sur ' + tot + ' cette semaine' +
-        (ec !== null ? (ec > 0 ? ', c\'est <b>mieux que la semaine dernière</b> (+' + ec + ' %) 📈' : ec < 0 ? ' (un peu moins que la semaine dernière : on s\'accroche !)' : ', comme la semaine dernière') : '') + '.');
+        (ec !== null && ec > 0 ? ' 📈' : '') + '.');
     }
     if (proches.length) l.push('🎯 Plus qu\'<b>une bonne réponse</b> pour valider : ' + proches.slice(0, 3).map(function (e) { return esc(e.nom); }).join(', ') + '.');
     l.push('📆 ' + Math.min(nbSem, obj) + ' séance' + (nbSem > 1 ? 's' : '') + ' sur ' + obj + ' prévues cette semaine' + (nbSem >= obj ? ' ✅ objectif atteint !' : '') +
       (serie ? ' · 🔥 ' + serie + ' jour' + (serie > 1 ? 's' : '') + ' de suite' : '') + ' · note estimée <b>' + E.f(noteEstimee()) + ' / 6</b>.');
-    if (!tot) l.unshift('C\'est une nouvelle semaine : une petite séance pour bien la commencer ?');
-    return '<h2>Ma semaine</h2>' + l.slice(0, 2).map(function (x) { return '<p class="ligne-sem">' + x + '</p>'; }).join('');
+    if (!tot) l.unshift('Nouvelle semaine : on commence ?');
+    return l[0];   // une seule phrase, la plus parlante
   }
 
   // Plan de l'année : de septembre au brevet, chaque mois a ses thèmes ; les deux derniers mois sont réservés aux sujets type brevet
@@ -2971,7 +2978,7 @@ window.FICHES = {
   }
   function planHTML() {
     var plan = planAnnee(), now = new Date(), et = etatNotions();
-    return '<div class="carte"><h2>📅 Mon plan jusqu\'au brevet</h2><p class="note">Chaque mois, deux thèmes environ à travailler en plus de l\'entraînement du jour. Les deux derniers mois : sujets type brevet.</p><div class="plan">' +
+    return '<div class="carte"><h2>📅 Mon plan jusqu\'au brevet</h2><div class="plan">' +
       plan.map(function (x) {
         var courant = x.mois.getFullYear() === now.getFullYear() && x.mois.getMonth() === now.getMonth(), passe = !courant && x.mois < now;
         var contenu = x.sujets ? '📄 Sujets type brevet et épreuves blanches' : x.themes.map(function (id) {
@@ -2989,9 +2996,8 @@ window.FICHES = {
   }
   function ligneSeance(s) {
     var tx = s.total ? s.score / s.total : 0;
-    return '<tr class="cliquable" data-seance="' + esc(s.id) + '"><td>' + dateCourte(s.debut) + '</td><td>' + libelleSeance(s) + '</td><td>' + (s.repondre === 'oral' ? '🗣️ oral' : '💻 écran') +
-      '</td><td><b class="' + (tx >= 0.8 ? 'txt-ok' : tx < 0.5 ? 'txt-ko' : '') + '">' + s.score + '/' + s.total + '</b>' + (s.mode === 'epreuve' ? ' (' + E.f(sur6De(s)) + '/6)' : '') +
-      '</td><td>' + esc(s.poste || '') + '</td><td class="voir">Voir ›</td></tr>';
+    return '<tr class="cliquable" data-seance="' + esc(s.id) + '"><td>' + dateCourte(s.debut) + '</td><td>' + (s.repondre === 'oral' ? '🗣️ ' : '') + NOMS_SEANCE[s.mode] +
+      '</td><td><b class="' + (tx >= 0.8 ? 'txt-ok' : tx < 0.5 ? 'txt-ko' : '') + '">' + (s.mode === 'epreuve' ? E.f(sur6De(s)) + '/6' : s.score + '/' + s.total) + '</b></td><td class="voir">›</td></tr>';
   }
   function brancherSeances() { $vue.querySelectorAll('[data-seance]').forEach(function (tr) { tr.onclick = function () { aller('seance', tr.getAttribute('data-seance')); }; }); }
 
@@ -3008,7 +3014,7 @@ window.FICHES = {
     var joursSans = derniere ? Math.floor((Date.now() - new Date(derniere.debut).getTime()) / 864e5) : null;
 
     var html = '<div class="bandeau-parents">🔒 Espace parents</div>' +
-      '<h1>' + (partie === 'avec' ? 'Faire une épreuve avec ' + esc(p) : partie === 'resultats' ? 'Résultats de ' + esc(p) : 'Que voulez-vous faire ?') + '</h1><p class="sous">' + (jours > 0 ? 'Brevet dans <b>' + jours + ' jours</b>. ' : '') +
+      '<h1>' + (partie === 'avec' ? 'Séance avec ' + esc(p) : partie === 'resultats' ? 'Résultats de ' + esc(p) : 'Que voulez-vous faire ?') + '</h1>' + (partie === 'avec' ? '<p class="sous" hidden>' : '<p class="sous">') +
       (derniere ? 'Dernière séance : <b>' + dateCourte(derniere.debut) + '</b>' + (derniere.poste ? ' sur « ' + esc(derniere.poste) + ' »' : '') + '.' : 'Aucune séance enregistrée pour l\'instant.') + '</p>';
 
     // Points d'attention
@@ -3018,18 +3024,14 @@ window.FICHES = {
     if (sem.length < objectifHebdo() && new Date().getDay() >= 5) alertes.push('🎯 Objectif de la semaine pas encore atteint : ' + sem.length + ' séance(s) sur ' + objectifHebdo() + '.');
     if (!partie) {
       html += '<div class="grille deux">' +
-        '<button class="tuile grande" data-p="avec"><span class="ico">🗣️</span><b>Faire une épreuve avec ' + esc(p) + '</b><small>Épreuve blanche, sujet type brevet ou entraînement : vous posez les questions à l\'oral, ou elle répond à l\'écran.</small></button>' +
-        '<button class="tuile grande" data-p="resultats"><span class="ico">📊</span><b>Résultats de ' + esc(p) + '</b><small>Note estimée <strong>' + E.f(noteEstimee()) + ' / 6</strong> · ' + revoir.length + ' notion(s) à retravailler · ' +
-          sem.length + ' séance(s) cette semaine. Détail de chaque séance.</small></button></div>' +
+        '<button class="tuile grande" data-p="avec"><span class="ico">🗣️</span><b>Faire une épreuve avec ' + esc(p) + '</b><small>à l\'oral ou à l\'écran</small></button>' +
+        '<button class="tuile grande" data-p="resultats"><span class="ico">📊</span><b>Résultats de ' + esc(p) + '</b><small>note estimée <strong>' + E.f(noteEstimee()) + ' / 6</strong></small></button></div>' +
         '<div id="alertes">' + (alertes.length ? '<div class="carte alerte-carte"><h2>À surveiller</h2><ul>' + alertes.map(function (a) { return '<li>' + a + '</li>'; }).join('') + '</ul></div>' : '') + '</div>';
     }
     if (partie === 'avec') {
-      html += '<p class="note">Par défaut à l\'oral : vous lisez la question, vous voyez la réponse et notez juste ou faux. Vous pouvez aussi choisir « ' + esc(p) + ' à l\'ordinateur » à l\'étape suivante.</p><div class="grille">' +
-        tuile('sujet', '⏱️', 'Épreuve type brevet', '20 minutes · note sur 6, comme le jour J') +
-        tuile('jour', '🎯', 'Entraînement du jour', '10 questions selon ses difficultés') +
-        tuile('difficultes', '🔁', 'Revoir ses difficultés', revoir.length + ' notion(s) à retravailler') + '</div>' +
-        '<details class="plus"><summary>Autres séances</summary><div class="grille">' +
-        tuile('flash', '⚡', '5 minutes', '5 questions rapides') + tuile('theme', '📚', 'Un thème précis', 'Par exemple celui vu en classe') + '</div></details>';
+      html += '<div class="grille trois">' + tuile('sujet', '⏱️', 'Épreuve brevet', '20 min · sur 6') + tuile('jour', '🎯', 'Entraînement', '10 questions') +
+        tuile('difficultes', '🔁', 'Ses difficultés', revoir.length + ' à revoir') + '</div>' +
+        '<details class="plus"><summary>Autres séances</summary><div class="grille trois">' + tuile('flash', '⚡', '5 minutes', '') + tuile('theme', '📚', 'Un thème', '') + '</div></details>';
     }
     if (partie === 'resultats') {
 
@@ -3042,16 +3044,15 @@ window.FICHES = {
     if (!revoir.length) html += '<p class="note">Aucune notion en difficulté pour le moment.</p>';
     revoir.slice(0, 5).forEach(function (e) {
       var er = e.erreurs[0];
-      html += '<div class="notion-parent"><div><b>' + THEME[e.theme].icone + ' ' + esc(e.nom) + '</b> <span class="niveau a">' + e.serie + '/3 bonnes réponses pour la valider</span></div>' +
-        (er ? '<div class="note">Dernière erreur (' + dateCourte(er.date) + ') : ' + (er.r.r ? 'elle a répondu <b>' + er.r.r + '</b>, attendu <b>' + er.r.br + '</b>' : 'attendu <b>' + er.r.br + '</b>') +
-          (er.r.d ? '<br>🔎 ' + er.r.d : '') + '</div>' : '') + '</div>';
+      html += '<div class="notion-parent"><div><b>' + THEME[e.theme].icone + ' ' + esc(e.nom) + '</b> <span class="niveau a">' + e.serie + '/3</span></div>' +
+        (er && er.r.r ? '<div class="note">a répondu <b>' + er.r.r + '</b> au lieu de <b>' + er.r.br + '</b></div>' : '') + '</div>';
     });
     html += (revoir.length > 5 ? '<p class="note">… et ' + (revoir.length - 5) + ' autre(s) dans les statistiques détaillées.</p>' : '') +
       (revoir.length ? '<div class="ligne-btn"><button class="btn" data-lancer="difficultes">🗣️ Travailler ces notions avec elle</button></div>' : '') + '</div>';
 
     // Dernières séances
-    html += '<div class="carte"><h2>Dernières séances</h2><p class="note">Cliquez sur une séance pour voir chacune de ses réponses.</p>';
-    html += ss.length ? '<div class="hist-wrap"><table class="hist"><tr><th>Date</th><th>Séance</th><th>Réponses</th><th>Score</th><th>Appareil</th><th></th></tr>' +
+    html += '<div class="carte"><h2>Dernières séances</h2>';
+    html += ss.length ? '<div class="hist-wrap"><table class="hist">' +
       ss.slice().reverse().slice(0, 5).map(ligneSeance).join('') + '</table></div>' : '<p class="note">Aucune séance pour l\'instant.</p>';
     html += '</div>';
     }
@@ -3103,7 +3104,7 @@ window.FICHES = {
   var precedente = 'accueil';
 
   function tuile(mode, ico, titre, sous) {
-    return '<button class="tuile" data-mode="' + mode + '"><span class="ico">' + ico + '</span><b>' + titre + '</b><small>' + sous + '</small></button>';
+    return '<button class="tuile" data-mode="' + mode + '"><span class="ico">' + ico + '</span><b>' + titre + '</b>' + (sous ? '<small>' + sous + '</small>' : '') + '</button>';
   }
   function raccourcir(s, n) { s = String(s).replace(/<span class="frac"><span>([^<]*)<\/span><span>([^<]*)<\/span><\/span>/g, '$1/$2').replace(/<sup>([^<]*)<\/sup>/g, '^$1').replace(/<[^>]+>/g, ''); return s.length > n ? s.slice(0, n - 1) + '…' : s; }
 
@@ -3117,7 +3118,7 @@ window.FICHES = {
     if (oralParDefaut) dernier = 'oral';
     var titres = { jour: 'Entraînement du jour', flash: '⚡ 5 minutes', epreuve: 'Épreuve blanche', difficultes: 'Revoir mes difficultés', theme: 'Travailler un thème', sujet: 'Épreuve type brevet' };
     var html = '<div class="carte"><h2>' + titres[mode] + '</h2>';
-    if (mode === 'epreuve') html += '<p class="note">Format des sujets zéro du ministère : 9 questions sans calculatrice en 20 minutes, 6 questions à 0,5 point puis 3 questions à 1 point (note sur 6). Les corrections sont données à la fin, comme au brevet.</p>';
+    if (mode === 'epreuve') html += '<p class="note">9 questions · 20 min · note sur 6</p>';
     if (mode === 'sujet') {
       // meilleure note déjà obtenue sur chaque sujet
       var notesSujet = {}; D().seances.forEach(function (x) { if (x.sujet) notesSujet[x.sujet] = Math.max(notesSujet[x.sujet] || 0, sur6De(x)); });
@@ -3126,10 +3127,10 @@ window.FICHES = {
         return '<button data-sujet="' + x.id + '"' + (on ? ' class="on"' : '') + '>' + x.nom.replace('Sujet type ', '') + (n !== undefined ? ' ✓ ' + E.f(n) + '/6' : '') + '</button>';
       };
       var types = []; for (var k = 1; k <= NB_SUJETS_TYPES; k++) types.push(sujetType(k));
-      html += '<p class="note">9 questions, 20 minutes, sans calculatrice, note sur 6. Les corrections sont données à la fin, comme au brevet.</p>' +
-        '<details class="plus"><summary>Choisir un sujet précis (vrais sujets 2026, sujets types)</summary><p class="note">Les nombres changent à chaque fois ; ✓ indique la meilleure note déjà obtenue.</p>' +
-        '<h3>Vrais sujets 2026</h3><p class="note">Mêmes notions que le vrai sujet, dans le même ordre.</p><div class="themes-sel">' + SUJETS_2026.map(function (x) { return bouton(x, false); }).join('') + '</div>' +
-        '<h3>Sujets types inventés</h3><p class="note">' + NB_SUJETS_TYPES + ' sujets construits sur le même plan que ceux de 2026 (nombres, puissances, statistiques, probabilités, pourcentages, calcul littéral, deux questions de géométrie, grandeurs), avec d\'autres combinaisons de notions.</p>' +
+      html += '<p class="note">9 questions · 20 min · note sur 6 · correction à la fin</p>' +
+        '<details class="plus"><summary>Choisir un sujet précis</summary>' +
+        '<h3>Vrais sujets 2026</h3><div class="themes-sel">' + SUJETS_2026.map(function (x) { return bouton(x, false); }).join('') + '</div>' +
+        '<h3>Sujets inventés</h3>' +
         '<div class="themes-sel">' + types.map(function (x) { return bouton(x, false); }).join('') + '<button data-sujet="hasard">🎲 Un sujet au hasard</button></div></details>';
     }
     if (mode === 'theme') {
@@ -3137,16 +3138,14 @@ window.FICHES = {
         return '<button data-theme="' + t.id + '"' + (i === 0 ? ' class="on"' : '') + '>' + t.icone + ' ' + t.nom + '</button>'; }).join('') + '</div>';
     }
     if (mode === 'jour' || mode === 'flash' || mode === 'difficultes' || mode === 'theme') {
-      html += '<h3>Format des réponses</h3><div class="choix-mode">' +
-        '<input type="radio" name="format" id="f-seule" value="seule"' + (format === 'seule' ? ' checked' : '') + '><label for="f-seule"><b>🖊️ Je trouve seule</b><br><small class="note">Aucune proposition de réponse : on écrit son résultat. Correction et méthode tout de suite.</small></label>' +
-        '<input type="radio" name="format" id="f-brevet" value="brevet"' + (format === 'brevet' ? ' checked' : '') + '><label for="f-brevet"><b>🎓 Conditions du brevet</b><br><small class="note">Comme les vrais sujets : QCM et réponses directes mélangés, chrono (2 min par question), corrections à la fin.</small></label></div>';
-    } else if (mode !== 'sujet') {
-      html += '<p class="note">🎓 Format du brevet : QCM et réponses directes mélangés comme dans les vrais sujets, corrections à la fin.</p>';
+      html += '<h3>Comment répondre ?</h3><div class="choix-mode">' +
+        '<input type="radio" name="format" id="f-seule" value="seule"' + (format === 'seule' ? ' checked' : '') + '><label for="f-seule"><b>🖊️ Seule</b><br><small class="note">correction tout de suite</small></label>' +
+        '<input type="radio" name="format" id="f-brevet" value="brevet"' + (format === 'brevet' ? ' checked' : '') + '><label for="f-brevet"><b>🎓 Comme au brevet</b><br><small class="note">QCM, chrono, correction à la fin</small></label></div>';
     }
     // le mode oral se lance depuis l'espace parents ; dans l'espace de Louise-Marie, elle répond elle-même
     if (profil === 'parent') html += '<h3>Qui répond ?</h3><div class="choix-mode">' +
-      '<input type="radio" name="rep" id="r-ecran" value="ecran"' + (dernier === 'ecran' ? ' checked' : '') + '><label for="r-ecran"><b>💻 ' + esc(prenom()) + ' à l\'ordinateur</b><br><small class="note">Elle tape ou clique ses réponses, correction automatique.</small></label>' +
-      '<input type="radio" name="rep" id="r-oral" value="oral"' + (dernier === 'oral' ? ' checked' : '') + '><label for="r-oral"><b>🗣️ À l\'oral avec un parent</b><br><small class="note">Le parent lit la question, affiche la réponse et note juste / faux.</small></label></div>';
+      '<input type="radio" name="rep" id="r-ecran" value="ecran"' + (dernier === 'ecran' ? ' checked' : '') + '><label for="r-ecran"><b>💻 Elle, à l\'écran</b></label>' +
+      '<input type="radio" name="rep" id="r-oral" value="oral"' + (dernier === 'oral' ? ' checked' : '') + '><label for="r-oral"><b>🗣️ À l\'oral avec vous</b></label></div>';
     html += '<div class="ligne-btn"><button class="btn" id="go">Commencer</button><button class="btn sec" data-nav-local="accueil">Retour</button></div></div>';
     $vue.innerHTML = html;
     var theme = E.THEMES[0].id, sujet = null;   // sans choix : une épreuve blanche tirée au hasard
@@ -3208,12 +3207,11 @@ window.FICHES = {
       '<div class="enonce">' + q.texte + '</div>' + (q.figure || '');
     if (q.type === 'qcm') {
       html += '<div class="qcm">' + q.choix.map(function (c, k) { return '<button data-c="' + k + '"><span class="l">' + LETTRES[k] + '</span>' + c + '</button>'; }).join('') + '</div>';
-      if (oral) html += '<p class="aide">Cliquez sur la réponse qu\'elle donne, ou affichez la réponse.</p>';
     } else if (q.type === 'libre') {
       html += '<div class="saisie"><input id="rep" autocomplete="off" autocapitalize="off" placeholder="' + (oral ? 'Sa réponse (facultatif)' : 'Ta réponse') + '">' +
         '<span class="touches">' + ['x', '²', '³', '√', '×', '/', '(', ')', '−', '⌫'].map(function (t) { return '<button type="button" class="btn sec touche" data-t="' + t + '">' + t + '</button>'; }).join('') + '</span>' +
         '<button class="btn" id="valider">' + (oral ? 'Vérifier sa réponse' : 'Valider') + '</button></div>' +
-        '<p class="aide">Aucune proposition : écris ta réponse (un nombre, une expression comme 3x² − 2x, ou un mot comme « losange »).</p>';
+        '';
     } else {
       // sur téléphone : pavé numérique intégré (avec moins, virgule et fraction), sans le clavier du téléphone
       html += '<div class="saisie"><input id="rep" autocomplete="off" inputmode="' + (tactile() ? 'none' : 'decimal') + '" placeholder="' + (oral ? 'Sa réponse (facultatif)' : 'Ta réponse') + '">' +
@@ -3221,14 +3219,14 @@ window.FICHES = {
         '<button class="btn" id="valider">' + (oral ? 'Vérifier sa réponse' : 'Valider') + '</button></div>' +
         (tactile() ? '<div class="pave">' + ['7', '8', '9', '⌫', '4', '5', '6', '/', '1', '2', '3', '−', '0', ',', '(', ')'].map(function (t) {
           return '<button type="button" class="btn sec touche' + (t === '⌫' ? ' eff' : '') + '" data-t="' + t + '">' + t + '</button>'; }).join('') +
-          '</div><p class="aide"><a href="#" id="clavier-tel">⌨️ Utiliser plutôt le clavier du téléphone</a></p>' : '') +
-        '<p class="aide">' + (q.aide === 'fraction' ? 'Pour une fraction, écrire par exemple 3/4. ' : '') + (tactile() ? '' : 'Virgule ou point acceptés, signe moins avec la touche « - ».') + '</p>';
+          '</div><p class="aide"><a href="#" id="clavier-tel">⌨️ Clavier du téléphone</a></p>' : '') +
+        (q.aide === 'fraction' ? '<p class="aide">Fraction : écrire 3/4</p>' : '');
     }
     html += '<div class="ligne-btn">' + (oral ? '<button class="btn sec" id="voir">👁 Afficher la réponse</button>' : '') +
-      ('speechSynthesis' in window ? '<button class="btn sec" id="lire">🔊 Lire la question</button>' : '') +
+      ('speechSynthesis' in window ? '<button class="btn sec" id="lire">🔊 Lire</button>' : '') +
       '<button class="btn sec" id="brouillon-bt">✏️ Brouillon</button>' +
-      (!enBrevet(s) && !oral && window.FICHES && window.FICHES[q.gen] ? '<button class="btn sec" id="pouce">💡 Coup de pouce</button>' : '') +
-      (enBrevet(s) && !oral ? '<button class="btn sec" id="passer">Passer (je ne sais pas)</button>' : '') + '</div><div id="retour"></div></div>';
+      (!enBrevet(s) && !oral && window.FICHES && window.FICHES[q.gen] ? '<button class="btn sec" id="pouce">💡 Indice</button>' : '') +
+      (enBrevet(s) && !oral ? '<button class="btn sec" id="passer">Passer</button>' : '') + '</div><div id="retour"></div></div>';
     $vue.innerHTML = html;
 
     var inp = document.getElementById('rep');
@@ -3258,7 +3256,7 @@ window.FICHES = {
       s.aideQ = true;
       var z = document.createElement('div');
       z.className = 'retour neutre';
-      z.innerHTML = '<div class="titre">💡 Coup de pouce</div><p>' + window.FICHES[q.gen].regle + '</p><p class="note">La question compte dans la séance, mais la notion ne sera validée qu\'en la réussissant sans aide.</p>';
+      z.innerHTML = '<div class="titre">💡 Indice</div><p>' + window.FICHES[q.gen].regle + '</p>';
       pouce.closest('.ligne-btn').after(z); pouce.remove();
     };
   }
@@ -3342,14 +3340,14 @@ window.FICHES = {
     ['valider', 'voir', 'passer'].forEach(function (id) { var b = document.getElementById(id); if (b) b.remove(); });
 
     if (enBrevet(s)) {
-      document.getElementById('retour').innerHTML = '<div class="retour neutre"><div class="titre">' + (ok ? '✓ Noté juste' : '✗ Noté faux') + '</div><p class="note">Comme au brevet : les corrections sont données à la fin.</p></div>' +
+      document.getElementById('retour').innerHTML = '<div class="retour neutre"><div class="titre">' + (ok ? '✓ Noté juste' : '✗ Noté faux') + '</div></div>' +
         '<div class="ligne-btn"><button class="btn" id="suivante">' + (s.i + 1 < s.qs.length ? 'Question suivante →' : 'Voir le bilan') + '</button></div>';
       var bs = document.getElementById('suivante'); bs.focus(); bs.onclick = suivante;
       return;
     }
     var aide = s.rep[s.i] && s.rep[s.i].ai;
     var html = '<div class="retour ' + (ok ? 'ok' : 'ko') + '"><div class="titre">' + (ok ? (aide ? '✓ Bonne réponse, avec le coup de pouce' : q.reessai ? '✓ Bonne réponse, bravo d\'avoir corrigé !' : '✓ Bonne réponse !') : '✗ Ce n\'est pas ça') + '</div>' +
-      (ok && aide ? '<p class="note">La notion sera validée quand tu la réussiras sans aide.</p>' : '');
+      '';
     if (ok && q.type === 'num' && E.nonSimplifiee(rep)) html += '<p>Juste, mais pense à simplifier : <b>' + q.reponse + '</b>.</p>';
     if (!ok) {
       if (rep !== null && rep !== undefined) html += '<p>Réponse donnée : ' + texteReponse(q, rep) + '<br>Bonne réponse : <b>' + q.reponse + '</b></p>';
@@ -3360,7 +3358,7 @@ window.FICHES = {
     var reessai = !ok && !q.reessai && NOTION[q.gen] && s.qs.filter(function (x) { return x.reessai; }).length < 4;
     if (reessai) { var q2 = fabriquer(NOTION[q.gen], s.format, 1); q2.reessai = true; s.qs.splice(s.i + 1, 0, q2); }
     html += '<p>📝 <b>Correction :</b> ' + q.correction + '</p>' + ficheHTML(q.gen) + '</div>' +
-      (reessai ? '<p class="note">🔁 La question suivante porte sur la même notion, avec d\'autres nombres : c\'est le moment d\'appliquer la correction.</p>' : '') + '<div class="ligne-btn">';
+      '<div class="ligne-btn">';
     html += '<button class="btn" id="suivante">' + (reessai ? 'Nouvelle chance →' : s.i + 1 < s.qs.length ? 'Question suivante →' : 'Voir le bilan') + '</button></div>';
     document.getElementById('retour').innerHTML = html;
     var b = document.getElementById('suivante'); b.focus(); b.onclick = suivante;
@@ -3371,8 +3369,8 @@ window.FICHES = {
     var s = seance, q = s.qs[s.i];
     var voir = document.getElementById('voir'); if (voir) voir.remove();
     document.getElementById('retour').innerHTML = '<div class="retour neutre"><div class="titre">Réponse attendue : ' + q.reponse + (q.unite && q.type === 'num' ? ' ' + esc(q.unite) : '') + '</div>' +
-      (enBrevet(s) ? '<p class="note">Corrections à la fin, comme au brevet.</p>' : '<p>📝 ' + q.correction + '</p>' + ficheHTML(q.gen)) + '</div><div class="ligne-btn"><button class="btn ok" id="juste">✓ Elle a juste</button><button class="btn ko" id="faux">✗ Elle s\'est trompée</button></div>' +
-      (enBrevet(s) ? '' : '<p class="aide">Astuce : si elle s\'est trompée, tapez sa réponse dans le champ ci-dessus (ou cliquez sa proposition) puis « Vérifier » pour obtenir l\'explication de l\'erreur.</p>');
+      (enBrevet(s) ? '' : '<p>📝 ' + q.correction + '</p>') + '</div><div class="ligne-btn"><button class="btn ok" id="juste">✓ Elle a juste</button><button class="btn ko" id="faux">✗ Elle s\'est trompée</button></div>' +
+      '';
     document.getElementById('juste').onclick = function () { repondre(null, true); };
     document.getElementById('faux').onclick = function () { repondre(null, false); };
     var inp = document.getElementById('rep');
@@ -3423,7 +3421,6 @@ window.FICHES = {
     var corrigees = enr.rep.filter(function (r) { return r.re && r.ok; }).length;
     if (corrigees) html += '<p>🔁 ' + corrigees + ' erreur' + (corrigees > 1 ? 's' : '') + ' corrigée' + (corrigees > 1 ? 's' : '') + ' tout de suite grâce à la nouvelle chance.</p>';
     var fausses = enr.rep.filter(function (r) { return !r.ok; });
-    if (fausses.length) html += '<p>Les notions ratées sont mémorisées : elles reviendront dans « Entraînement du jour » et « Revoir mes difficultés » jusqu\'à ce qu\'elles soient maîtrisées.</p>';
     html += '<h2>Correction détaillée</h2>';
     enr.rep.forEach(function (r, i) {
       var q = qs[i];
@@ -3431,7 +3428,7 @@ window.FICHES = {
         (r.ok ? '' : (r.r ? '<div>Réponse donnée : ' + r.r + '</div>' : '') + '<div>Bonne réponse : <b>' + q.reponse + '</b></div>' +
           (r.d ? '<div>🔎 ' + r.d + '</div>' : '') + '<div class="note">📝 ' + q.correction + '</div>' + ficheHTML(q.gen)) + '</div>';
     });
-    html += '<div class="ligne-btn">' + (fausses.length ? '<button class="btn" id="refaire">🔁 Retravailler ces erreurs</button>' : '') +
+    html += '<div class="ligne-btn">' + (fausses.length ? '<button class="btn" id="refaire">🔁 Refaire mes erreurs</button>' : '') +
       '<button class="btn sec" id="accueil">Retour à l\'accueil</button></div></div>';
     $vue.innerHTML = html;
     window.scrollTo(0, 0);
@@ -3461,11 +3458,11 @@ window.FICHES = {
     var nbR = Object.keys(et).filter(function (k) { return et[k].statut === 'revoir'; }).length;
     function taux(t) { return t.length ? pct(t.filter(function (r) { return r.ok; }).length / t.length) : '–'; }
 
-    var html = (profil === 'parent' ? '<div class="bandeau-parents">🔒 Espace parents</div>' : '') + (profil === 'eleve' ? '<h1>Mes progrès</h1><p class="sous">' + esc(prenom()) + ', voici où tu en es. Continue comme ça !</p><p hidden>' : '<h1>Progrès de ' + esc(prenom()) + '</h1><p class="sous">') + (S.web ? 'Données communes à tous les appareils (Mac et téléphone).' : 'Données communes aux 3 Mac' + (S.dossierNom ? ' (dossier Drive « ' + esc(S.dossierNom) + ' »)' : ' — synchro Drive non active sur ce poste') + '.') + '</p>' +
+    var html = (profil === 'parent' ? '<div class="bandeau-parents">🔒 Espace parents</div>' : '') + (profil === 'eleve' ? '<h1>Mes progrès</h1><p hidden>' : '<h1>Progrès de ' + esc(prenom()) + '</h1><p class="sous">') + (S.web ? 'Données communes à tous les appareils (Mac et téléphone).' : 'Données communes aux 3 Mac' + (S.dossierNom ? ' (dossier Drive « ' + esc(S.dossierNom) + ' »)' : ' — synchro Drive non active sur ce poste') + '.') + '</p>' +
       '<div class="kpis">' + kpi(E.f(noteEstimee()) + ' / 6', 'note estimée au brevet') + kpi(nbM + ' / ' + E.GENERATEURS.length, 'notions maîtrisées') +
       kpi(nbR, 'notions à retravailler') + kpi(taux(sem), 'réussite sur 7 jours') + '</div>';
     // Évolution de la note estimée, semaine après semaine
-    html += '<div class="carte"><h2>Note estimée au brevet (partie automatismes)</h2><p class="note">Estimation sur 6 d\'après la réussite récente sur chaque notion, pondérée par sa fréquence dans les sujets 2026. Une notion jamais travaillée compte pour 40 %.</p><div class="graph" id="graph-note"></div></div>';
+    html += '<div class="carte"><h2>Ma note estimée</h2><div class="graph" id="graph-note"></div></div>';
     // Badges
     html += planHTML();
     html += '<details class="plus"><summary>🏅 Badges, épreuves blanches et réussite par thème</summary>';
@@ -3497,10 +3494,10 @@ window.FICHES = {
           return '<div class="barre-theme"><span>' + th.icone + ' ' + th.nom + '</span><div class="rail"><div style="width:' + Math.round(tx * 100) + '%"></div></div><span class="niveau">' + pct(tx) + ' · ' + rs.length + ' q.</span></div>';
         }).join('') + (t.length ? '' : '<p class="note">Aucune séance dans ce format pour l\'instant.</p>') + '</div>';
     }
-    html += '<div class="carte"><h2>Selon le format des réponses</h2><p class="note">Trouver seule, sans propositions, est plus exigeant que choisir parmi des propositions : comparer les deux montre si les notions sont vraiment acquises.</p>' +
+    html += '<div class="carte"><h2>Selon le format des réponses</h2>' +
       '<div class="formats">' + colonneFormat('seule', '🖊️ Je trouve seule', 'Sans propositions de réponse.') +
       colonneFormat('brevet', '🎓 Conditions du brevet', 'QCM et réponses directes mélangés : épreuves, sujets 2026 et entraînements « brevet ».') + '</div></div>';
-    html += '<div class="carte"><h2>Réussite par thème (tous formats)</h2><p class="note">Sur les 30 dernières réponses de chaque thème.</p>';
+    html += '<div class="carte"><h2>Réussite par thème</h2>';
     E.THEMES.forEach(function (t) {
       var rs = toutes.filter(function (r) { return r.t === t.id; }).slice(-30);
       var tx = rs.length ? rs.filter(function (r) { return r.ok; }).length / rs.length : 0;
@@ -3515,16 +3512,18 @@ window.FICHES = {
     html += '</details>';
     html += '<div class="carte"><h2>Carnet des difficultés</h2>';
     if (!dif.length) html += '<p class="note">Aucune notion en difficulté pour le moment.</p>';
+    if (dif.length) html += '<div class="ligne-btn" style="margin:0 0 12px"><button class="btn" id="travDif">🔁 Travailler ces notions</button></div>';
     dif.forEach(function (e) {
-      html += '<h3>' + THEME[e.theme].icone + ' ' + esc(e.nom) + ' <span class="niveau a">— ' + e.serie + '/3 bonnes réponses d\'affilée pour la valider</span></h3>';
-      html += ficheHTML(e.id);
-      e.erreurs.slice(0, 3).forEach(function (x) {
+      // une ligne par notion : on l'ouvre pour voir la dernière erreur et la méthode
+      html += '<details class="classe"><summary>' + THEME[e.theme].icone + ' ' + esc(e.nom) + ' <span class="niveau a">' + e.serie + '/3</span></summary>';
+      e.erreurs.slice(0, 1).forEach(function (x) {
         html += '<div class="erreur-item"><div class="q">' + x.r.q + '</div><div class="note">' + dateCourte(x.date) +
           (x.r.r ? ' · réponse donnée : ' + x.r.r : '') + ' · attendu : <b>' + x.r.br + '</b></div>' +
           (x.r.d ? '<div>🔎 ' + x.r.d + '</div>' : '') + '</div>';
       });
+      html += ficheHTML(e.id) + '</details>';
     });
-    html += (dif.length ? '<div class="ligne-btn"><button class="btn" id="travDif">🔁 Travailler ces notions maintenant</button></div>' : '') + '</div>';
+    html += '</div>';
 
     // Toutes les notions
     html += '<details class="plus"><summary>📋 Toutes les notions et historique des séances</summary>';
@@ -3539,7 +3538,7 @@ window.FICHES = {
     html += '</div>';
 
     // Historique
-    html += '<div class="carte"><h2>Historique des séances</h2><div class="hist-wrap"><table class="hist"><tr><th>Date</th><th>Séance</th><th>Réponses</th><th>Score</th>' + (profil === 'parent' ? '<th>Appareil</th><th></th>' : '') + '</tr>';
+    html += '<div class="carte"><h2>Historique des séances</h2><div class="hist-wrap"><table class="hist"><tr><th>Date</th><th>Séance</th>' + (profil === 'parent' ? '<th>Score</th><th></th>' : '<th>Réponses</th><th>Score</th>') + '</tr>';
     var NOMS = { jour: 'Entraînement du jour', flash: '⚡ 5 minutes', epreuve: 'Épreuve blanche', difficultes: 'Difficultés', theme: 'Thème' };
     ss.slice().reverse().slice(0, profil === 'parent' ? 200 : 40).forEach(function (s) {
       if (profil === 'parent') { html += ligneSeance(s); return; }
