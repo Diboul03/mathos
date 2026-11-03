@@ -126,6 +126,18 @@ body.parents { --accent: #6b4fbf; --accent-doux: #efe9fb; --accent-encre: #fff; 
 table.hist tr.cliquable { cursor: pointer; } table.hist tr.cliquable:hover td { background: var(--accent-doux); }
 table.hist td.voir { color: var(--accent); font-weight: 600; white-space: nowrap; text-align: right; }
 .txt-ok { color: var(--ok); } .txt-ko { color: var(--ko); }
+/* Accueil de Louise-Marie : la séance du jour en grand */
+.hero { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; border: 2px solid var(--accent); background: linear-gradient(135deg, var(--accent-doux), var(--carte) 70%); }
+.hero-txt b { display: block; font-size: 21px; margin: 2px 0; } .hero-bt { display: flex; gap: 10px; flex-wrap: wrap; }
+.btn.gros { font-size: 19px; padding: 14px 22px; border-radius: 12px; }
+.ligne-sem { margin: 6px 0; } .hero a, .ligne-sem a, .aide a { color: var(--accent); font-weight: 600; } .titre-section { margin: 22px 0 12px; }
+.plan { display: grid; gap: 6px; } .plan-mois { display: grid; grid-template-columns: 130px 1fr; gap: 10px; padding: 8px 10px; border-radius: 10px; font-size: 15px; }
+.plan-mois b::first-letter { text-transform: uppercase; } .scratch { max-width: 100%; } .scratch .blk { max-width: 100%; } .plan-mois.courant { background: var(--accent-doux); } .plan-mois.passe { opacity: .7; }
+/* Pavé numérique sur téléphone */
+.pave { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; max-width: 360px; margin-top: 12px; }
+.pave .touche { padding: 12px 0; font-size: 21px; min-width: 0; } .pave .eff { color: var(--ko); }
+.touches { flex-wrap: wrap; }
+@media (max-width: 640px) { .hero-bt, .hero-bt .btn { width: 100%; } .plan-mois { grid-template-columns: 1fr; gap: 2px; } }
 .erreur-item { border-left: 4px solid var(--ko); padding: 8px 14px; margin: 12px 0; background: var(--fond); border-radius: 0 10px 10px 0; }
 .erreur-item.juste { border-left-color: var(--ok); }
 .erreur-item .q { font-weight: 600; margin-bottom: 4px; }
@@ -2493,7 +2505,7 @@ window.FICHES = {
     var h = {};
     D().seances.forEach(function (s) {
       (s.rep || []).forEach(function (r) {
-        (h[r.g] = h[r.g] || []).push({ ok: r.ok, date: s.debut, r: r });
+        (h[r.g] = h[r.g] || []).push({ ok: r.ok && !r.ai, date: s.debut, r: r });
       });
     });
     return h;
@@ -2645,6 +2657,7 @@ window.FICHES = {
       var autres = G.filter(function (g) { return et[g.id].statut !== 'revoir' && et[g.id].statut !== 'maitrise'; });
       liste = liste.concat(tirer(autres, function (g) { return (1 + et[g.id].priorite) * (g.hors ? 0.3 : 1); }, 8 - liste.length, compte));
       liste = liste.concat(tirer(G, function (g) { return (et[g.id].statut === 'maitrise' ? 0.5 : 1) * (g.hors ? 0.3 : 1); }, 10 - liste.length, compte));
+      if (mode === 'flash') liste = liste.slice(0, 5);   // 5 minutes : les 5 questions les plus utiles
       liste = E.shuffle(liste);
     }
     return liste.map(function (g) { return fabriquer(g, format, niveauPour(et[g.id])); });
@@ -2677,7 +2690,7 @@ window.FICHES = {
   // pondérée par sa fréquence dans les sujets 2026 (une notion jamais travaillée compte pour 40 %)
   function noteEstimee(avant) {
     var h = {}, lim = avant ? new Date(avant).getTime() : Infinity;
-    D().seances.forEach(function (s) { if (new Date(s.debut).getTime() < lim) (s.rep || []).forEach(function (r) { (h[r.g] = h[r.g] || []).push(r.ok); }); });
+    D().seances.forEach(function (s) { if (new Date(s.debut).getTime() < lim) (s.rep || []).forEach(function (r) { (h[r.g] = h[r.g] || []).push(r.ok && !r.ai); }); });
     var tot = 0, som = 0;
     E.GENERATEURS.forEach(function (g) {
       if (g.hors) return;
@@ -2817,25 +2830,31 @@ window.FICHES = {
   // =====================================================================
   //  Accueil
   // =====================================================================
+  function formatPref() { try { return localStorage.getItem('mathos.format') || 'seule'; } catch (e) { return 'seule'; } }
   function vueAccueil() {
     if (profil === 'parent') return vueAccueilParents();
     var et = etatNotions(), r = D().reglages;
     var jours = Math.ceil((new Date(r.dateBrevet + 'T08:00:00') - new Date()) / 864e5);
     var revoir = Object.keys(et).map(function (k) { return et[k]; }).filter(function (e) { return e.statut === 'revoir'; })
       .sort(function (a, b) { return b.priorite - a.priorite; });
-    var maitrisees = Object.keys(et).filter(function (k) { return et[k].statut === 'maitrise'; }).length;
-    var aujourdhui = D().seances.filter(function (s) { return jour(s.debut) === new Date().toISOString().slice(0, 10); });
-    var html = (modeEssai() ? '<div class="retour neutre" style="margin:0 0 16px">🧪 <b>Mode essai activé sur ' + (S.web ? 'cet appareil' : 'ce Mac') + '</b> : les séances ne sont pas enregistrées.' +
-        (profil === 'parent' ? ' À désactiver dans Réglages avant que ' + esc(prenom()) + ' s\'entraîne.' : ' Demande à tes parents de le désactiver.') + '</div>' : '') +
-      (profil === 'parent' ? '<h1>Espace parents</h1><p class="sous">Séances avec ' + esc(prenom()) + ' (à l\'écran ou à l\'oral), tableau de bord et réglages. ' : '<h1>Bonjour ' + esc(prenom()) + ' 👋</h1><p class="sous">') +
-      (jours > 0 ? 'Brevet dans <b>' + jours + ' jours</b> (date indicative, modifiable dans les réglages). ' : '') +
-      maitrisees + ' notion(s) maîtrisée(s) sur ' + E.GENERATEURS.length + '.' +
-      (aujourdhui.length ? ' Déjà ' + aujourdhui.length + ' séance(s) aujourd\'hui, bravo !' : '') + '</p>';
-    var nbSem = seancesSemaine().length, obj = objectifHebdo(), serie = serieJours();
-    html += '<div class="carte semaine"><div class="sem-bloc"><div class="note">Objectif de la semaine</div><div class="sem-v">' + Math.min(nbSem, obj) + ' / ' + obj + ' séances' + (nbSem >= obj ? ' ✅' : '') + '</div>' +
-      '<div class="rail"><div style="width:' + Math.min(100, Math.round(nbSem / obj * 100)) + '%"></div></div></div>' +
-      '<div class="sem-bloc"><div class="note">Série</div><div class="sem-v">' + (serie ? '🔥 ' + serie + ' jour' + (serie > 1 ? 's' : '') + ' de suite' : 'À lancer aujourd\'hui !') + '</div></div>' +
-      '<div class="sem-bloc"><div class="note">Note estimée (automatismes)</div><div class="sem-v">' + E.f(noteEstimee()) + ' / 6</div></div></div>';
+    var aujourdhui = D().seances.filter(function (s) { return jourLocal(s.debut) === jourLocal(new Date().toISOString()); });
+    var fmt = formatPref();
+    var html = (modeEssai() ? '<div class="retour neutre" style="margin:0 0 16px">🧪 <b>Mode essai activé sur ' + (S.web ? 'cet appareil' : 'ce Mac') + '</b> : les séances ne sont pas enregistrées. Demande à tes parents de le désactiver.</div>' : '') +
+      '<h1>Bonjour ' + esc(prenom()) + ' 👋</h1><p class="sous">' + (jours > 0 ? 'Brevet dans <b>' + jours + ' jours</b>.' : '') +
+      (aujourdhui.length ? ' Déjà ' + aujourdhui.length + ' séance' + (aujourdhui.length > 1 ? 's' : '') + ' aujourd\'hui, bravo !' : '') + '</p>';
+
+    // l'action principale : la séance du jour, en un clic
+    html += '<div class="carte hero"><div class="hero-txt"><div class="note">' + (aujourdhui.length ? 'Encore une ?' : 'Ma séance du jour') + '</div>' +
+      '<b>10 questions choisies pour toi</b><div class="note">environ 10 minutes · ' + (fmt === 'brevet' ? '🎓 conditions du brevet' : '🖊️ je trouve seule') +
+      ' · <a href="#" id="chg-format">changer</a></div></div>' +
+      '<div class="hero-bt"><button class="btn gros" id="go-jour">▶ C\'est parti</button><button class="btn sec gros" id="go-flash">⚡ 5 minutes</button></div></div>';
+
+    // progrès de la semaine, en mots
+    html += '<div class="carte semaine-txt">' + progresEnMots(et) + '</div>';
+
+    // plan du mois
+    var pm = planDuMois();
+    if (pm) html += '<div class="carte"><h2>📅 Ce mois-ci : ' + pm.titre + '</h2><p class="note">' + pm.texte + '</p><div class="ligne-btn">' + pm.boutons + '</div></div>';
 
     if (S.web && S.etat.statut === 'local') {
       html += '<div class="carte" style="border-color:var(--att)"><b>Progression non partagée</b><p class="note" style="margin:4px 0 0">Cet appareil n\'accède pas à la progression en ligne' + (S.google ? '' : ' (connexion internet ou compte claude.ai)') + '. Les séances sont gardées ici et seront envoyées dès que la connexion revient.</p></div>';
@@ -2847,30 +2866,106 @@ window.FICHES = {
         '</p><button class="btn" data-act="connecter">' + (S.etat.statut === 'reconnecter' ? 'Reconnecter Google Drive' : 'Choisir le dossier Mathos sur le Drive') + '</button></div>';
     }
 
-    html += '<div class="grille">' +
-      tuile('jour', '🎯', 'Entraînement du jour', '10 questions choisies selon ses difficultés') +
-      tuile('epreuve', '⏱️', 'Épreuve blanche', '9 questions · 20 minutes · format des sujets officiels') +
-      tuile('sujet', '📄', 'Sujets type brevet', '7 vrais sujets 2026 et ' + NB_SUJETS_TYPES + ' sujets inventés sur le même modèle') +
+    html += '<h2 class="titre-section">Autres entraînements</h2><div class="grille">' +
       tuile('difficultes', '🔁', 'Revoir mes difficultés', revoir.length ? revoir.length + ' notion(s) à retravailler' : 'Aucune difficulté en cours 🎉') +
+      tuile('epreuve', '⏱️', 'Épreuve blanche', '9 questions · 20 minutes · comme le jour J') +
+      tuile('sujet', '📄', 'Sujets type brevet', '7 vrais sujets 2026 et ' + NB_SUJETS_TYPES + ' sujets inventés') +
       tuile('theme', '📚', 'Travailler un thème', 'Choisir un chapitre précis') + '</div>';
 
-    if (revoir.length) {
-      html += '<div class="carte" style="margin-top:16px"><h2>Notions à retravailler</h2><p class="note">L\'app garde en mémoire les notions ratées et les repropose jusqu\'à 3 bonnes réponses d\'affilée.</p>';
-      revoir.slice(0, 6).forEach(function (e) {
-        html += '<div class="barre-theme"><span>' + THEME[e.theme].icone + ' ' + esc(e.nom) + '</span><span class="note">' +
-          (e.erreurs[0] && e.erreurs[0].r.d ? esc(raccourcir(e.erreurs[0].r.d, 90)) : '') + '</span><span class="niveau a">✗ ' + e.serie + '/3 réussies</span></div>';
-      });
-      html += '</div>';
-    }
     $vue.innerHTML = html;
     $vue.querySelectorAll('[data-mode]').forEach(function (b) { b.onclick = function () { configurer(b.getAttribute('data-mode')); }; });
+    $vue.querySelectorAll('[data-plan]').forEach(function (b) { b.onclick = function () { demarrer('theme', 'ecran', b.getAttribute('data-plan'), null, fmt); }; });
+    var pl = $vue.querySelector('[data-plan-sujet]'); if (pl) pl.onclick = function () { configurer('sujet'); };
+    document.getElementById('go-jour').onclick = function () { demarrer('jour', 'ecran', null, null, fmt); };
+    document.getElementById('go-flash').onclick = function () { demarrer('flash', 'ecran', null, null, fmt); };
+    document.getElementById('chg-format').onclick = function (e) {
+      e.preventDefault();
+      boite('<b>Format des réponses</b><p class="note"><b>🖊️ Je trouve seule</b> : aucune proposition, correction et méthode tout de suite.<br><b>🎓 Conditions du brevet</b> : QCM et réponses directes mélangés, chrono, corrections à la fin.</p>',
+        [['🖊️ Je trouve seule', 'seule', fmt === 'seule' ? '' : 'sec'], ['🎓 Brevet', 'brevet', fmt === 'brevet' ? '' : 'sec']]).then(function (r) {
+        if (r === 'seule' || r === 'brevet') { try { localStorage.setItem('mathos.format', r); } catch (e2) {} vueAccueil(); }
+      });
+    };
     var c = $vue.querySelector('[data-act=connecter]');
     if (c) c.onclick = function () { S.connecter(false).then(rafraichir); };
+  }
+
+  // Progrès de la semaine racontés simplement (plutôt que des pourcentages)
+  function dateValidation(e, h) {
+    // date de la 3e bonne réponse d'affilée (celle qui a validé la notion)
+    var t = h[e.id] || []; if (e.serie < 3) return null;
+    return t[t.length - e.serie + 2].date;
+  }
+  function progresEnMots(et) {
+    var h = historiqueParNotion(), lundi = debutSemaine(new Date()).getTime(), avant = lundi - 7 * 864e5;
+    var valides = [], bon = 0, tot = 0, bonP = 0, totP = 0;
+    Object.keys(et).forEach(function (k) {
+      var e = et[k];
+      if ((e.statut === 'maitrise' || e.statut === 'reviser') && new Date(dateValidation(e, h)).getTime() >= lundi) valides.push(e);
+    });
+    D().seances.forEach(function (s) {
+      var t = new Date(s.debut).getTime();
+      (s.rep || []).forEach(function (r) { var ok = r.ok && !r.ai; if (t >= lundi) { tot++; if (ok) bon++; } else if (t >= avant) { totP++; if (ok) bonP++; } });
+    });
+    var proches = Object.keys(et).map(function (k) { return et[k]; }).filter(function (e) { return (e.statut === 'revoir' || e.statut === 'encours') && e.serie === 2; });
+    var nbSem = seancesSemaine().length, obj = objectifHebdo(), serie = serieJours(), l = [];
+    if (valides.length) l.push('🌟 Tu as validé <b>' + valides.length + ' notion' + (valides.length > 1 ? 's' : '') + '</b> cette semaine : ' + valides.slice(0, 4).map(function (e) { return esc(e.nom); }).join(', ') + (valides.length > 4 ? '…' : '') + '.');
+    if (tot) {
+      var ec = totP >= 5 ? Math.round(100 * bon / tot) - Math.round(100 * bonP / totP) : null;
+      l.push('✅ <b>' + bon + ' bonne' + (bon > 1 ? 's' : '') + ' réponse' + (bon > 1 ? 's' : '') + '</b> sur ' + tot + ' cette semaine' +
+        (ec !== null ? (ec > 0 ? ', c\'est <b>mieux que la semaine dernière</b> (+' + ec + ' %) 📈' : ec < 0 ? ' (un peu moins que la semaine dernière : on s\'accroche !)' : ', comme la semaine dernière') : '') + '.');
+    }
+    if (proches.length) l.push('🎯 Plus qu\'<b>une bonne réponse</b> pour valider : ' + proches.slice(0, 3).map(function (e) { return esc(e.nom); }).join(', ') + '.');
+    l.push('📆 ' + Math.min(nbSem, obj) + ' séance' + (nbSem > 1 ? 's' : '') + ' sur ' + obj + ' prévues cette semaine' + (nbSem >= obj ? ' ✅ objectif atteint !' : '') +
+      (serie ? ' · 🔥 ' + serie + ' jour' + (serie > 1 ? 's' : '') + ' de suite' : '') + ' · note estimée <b>' + E.f(noteEstimee()) + ' / 6</b>.');
+    if (!tot) l.unshift('C\'est une nouvelle semaine : une petite séance pour bien la commencer ?');
+    return '<h2>Ma semaine</h2>' + l.map(function (x) { return '<p class="ligne-sem">' + x + '</p>'; }).join('');
+  }
+
+  // Plan de l'année : de septembre au brevet, chaque mois a ses thèmes ; les deux derniers mois sont réservés aux sujets type brevet
+  function planAnnee() {
+    var fin = new Date(D().reglages.dateBrevet + 'T08:00:00'), mois = [];
+    var cur = new Date(fin.getMonth() >= 8 ? fin.getFullYear() : fin.getFullYear() - 1, 8, 1);
+    while (cur <= fin && mois.length < 12) { mois.push(new Date(cur)); cur.setMonth(cur.getMonth() + 1); }
+    var nbSujets = mois.length >= 6 ? 2 : mois.length >= 3 ? 1 : 0, nbT = mois.length - nbSujets, th = E.THEMES;
+    return mois.map(function (m, i) {
+      if (i >= nbT) return { mois: m, sujets: true, themes: [] };
+      return { mois: m, themes: th.slice(Math.floor(i * th.length / nbT), Math.floor((i + 1) * th.length / nbT)).map(function (t) { return t.id; }) };
+    });
+  }
+  function maitriseTheme(et, id) {
+    var ns = E.GENERATEURS.filter(function (g) { return g.theme === id; });
+    return ns.filter(function (g) { return et[g.id].statut === 'maitrise' || et[g.id].statut === 'reviser'; }).length / ns.length;
+  }
+  function nomMois(d) { return d.toLocaleDateString('fr-FR', { month: 'long' }); }
+  function planDuMois() {
+    var plan = planAnnee(), now = new Date(), et = etatNotions();
+    var m = plan.filter(function (x) { return x.mois.getFullYear() === now.getFullYear() && x.mois.getMonth() === now.getMonth(); })[0];
+    if (!m) return null;
+    if (m.sujets) return { titre: 'sujets type brevet', texte: 'Dernière ligne droite : un sujet complet en 20 minutes plusieurs fois par semaine.', boutons: '<button class="btn" data-plan-sujet="1">📄 Faire un sujet</button>' };
+    // thèmes des mois passés encore peu maîtrisés : à rattraper
+    var retard = [];
+    plan.forEach(function (x) { if (x.mois < m.mois) x.themes.forEach(function (id) { if (maitriseTheme(et, id) < 0.5) retard.push(id); }); });
+    return {
+      titre: m.themes.map(function (id) { return THEME[id].icone + ' ' + THEME[id].nom; }).join(' et '),
+      texte: m.themes.map(function (id) { return THEME[id].nom + ' : ' + Math.round(100 * maitriseTheme(et, id)) + ' % des notions validées'; }).join(' · ') +
+        (retard.length ? '<br>À rattraper des mois précédents : ' + retard.slice(0, 4).map(function (id) { return THEME[id].nom; }).join(', ') + '.' : ''),
+      boutons: m.themes.concat(retard.slice(0, 2)).map(function (id, k) { return '<button class="btn' + (k < m.themes.length ? '' : ' sec') + '" data-plan="' + id + '">' + THEME[id].icone + ' ' + THEME[id].nom + '</button>'; }).join('')
+    };
+  }
+  function planHTML() {
+    var plan = planAnnee(), now = new Date(), et = etatNotions();
+    return '<div class="carte"><h2>📅 Mon plan jusqu\'au brevet</h2><p class="note">Chaque mois, deux thèmes environ à travailler en plus de l\'entraînement du jour. Les deux derniers mois : sujets type brevet.</p><div class="plan">' +
+      plan.map(function (x) {
+        var courant = x.mois.getFullYear() === now.getFullYear() && x.mois.getMonth() === now.getMonth(), passe = !courant && x.mois < now;
+        var contenu = x.sujets ? '📄 Sujets type brevet et épreuves blanches' : x.themes.map(function (id) {
+          var p = maitriseTheme(et, id); return THEME[id].icone + ' ' + THEME[id].nom + ' <span class="niveau ' + (p >= 0.8 ? 'm' : p >= 0.4 ? 'e' : passe ? 'a' : '') + '">' + Math.round(100 * p) + ' %</span>'; }).join(' · ');
+        return '<div class="plan-mois' + (courant ? ' courant' : passe ? ' passe' : '') + '"><b>' + nomMois(x.mois) + (courant ? ' (ce mois-ci)' : '') + '</b><span>' + contenu + '</span></div>';
+      }).join('') + '</div></div>';
   }
   // =====================================================================
   //  Espace parents : suivi de Louise-Marie
   // =====================================================================
-  var NOMS_SEANCE = { jour: 'Entraînement du jour', epreuve: 'Épreuve blanche', difficultes: 'Revoir les difficultés', theme: 'Thème' };
+  var NOMS_SEANCE = { jour: 'Entraînement du jour', flash: '⚡ 5 minutes', epreuve: 'Épreuve blanche', difficultes: 'Revoir les difficultés', theme: 'Thème' };
   function libelleSeance(s) {
     return NOMS_SEANCE[s.mode] + (s.sujet ? ' · ' + esc(s.sujet) : '') + (s.theme && THEME[s.theme] ? ' · ' + THEME[s.theme].nom : '') +
       (s.mode !== 'epreuve' && s.format ? ' · ' + (s.format === 'brevet' ? '🎓 brevet' : '🖊️ seule') : '');
@@ -2993,7 +3088,7 @@ window.FICHES = {
     var dernier = 'ecran', format = 'seule';
     try { dernier = localStorage.getItem('mathos.repondre') || 'ecran'; format = localStorage.getItem('mathos.format') || 'seule'; } catch (e) {}
     if (oralParDefaut) dernier = 'oral';
-    var titres = { jour: 'Entraînement du jour', epreuve: 'Épreuve blanche', difficultes: 'Revoir mes difficultés', theme: 'Travailler un thème', sujet: 'Sujets type brevet' };
+    var titres = { jour: 'Entraînement du jour', flash: '⚡ 5 minutes', epreuve: 'Épreuve blanche', difficultes: 'Revoir mes difficultés', theme: 'Travailler un thème', sujet: 'Sujets type brevet' };
     var html = '<div class="carte"><h2>' + titres[mode] + '</h2>';
     if (mode === 'epreuve') html += '<p class="note">Format des sujets zéro du ministère : 9 questions sans calculatrice en 20 minutes, 6 questions à 0,5 point puis 3 questions à 1 point (note sur 6). Les corrections sont données à la fin, comme au brevet.</p>';
     if (mode === 'sujet') {
@@ -3013,7 +3108,7 @@ window.FICHES = {
       html += '<h3>Quel thème ?</h3><div class="themes-sel">' + E.THEMES.map(function (t, i) {
         return '<button data-theme="' + t.id + '"' + (i === 0 ? ' class="on"' : '') + '>' + t.icone + ' ' + t.nom + '</button>'; }).join('') + '</div>';
     }
-    if (mode === 'jour' || mode === 'difficultes' || mode === 'theme') {
+    if (mode === 'jour' || mode === 'flash' || mode === 'difficultes' || mode === 'theme') {
       html += '<h3>Format des réponses</h3><div class="choix-mode">' +
         '<input type="radio" name="format" id="f-seule" value="seule"' + (format === 'seule' ? ' checked' : '') + '><label for="f-seule"><b>🖊️ Je trouve seule</b><br><small class="note">Aucune proposition de réponse : on écrit son résultat. Correction et méthode tout de suite.</small></label>' +
         '<input type="radio" name="format" id="f-brevet" value="brevet"' + (format === 'brevet' ? ' checked' : '') + '><label for="f-brevet"><b>🎓 Conditions du brevet</b><br><small class="note">Comme les vrais sujets : QCM et réponses directes mélangés, chrono (2 min par question), corrections à la fin.</small></label></div>';
@@ -3065,7 +3160,7 @@ window.FICHES = {
   function enteteQuestion() {
     var s = seance, n = s.qs.length, q = s.qs[s.i];
     var reste = s.limite ? s.limite - (Date.now() - s.t0) / 1000 : 0;
-    return '<div class="entete-q"><span>Question ' + (s.i + 1) + ' / ' + n + ' · ' + THEME[q.theme].icone + ' ' + esc(q.notion) + '</span>' +
+    return '<div class="entete-q"><span>Question ' + (s.i + 1) + ' / ' + n + ' · ' + THEME[q.theme].icone + ' ' + esc(q.notion) + (q.reessai ? ' · <b class="txt-ok">🔁 Nouvelle chance</b>' : '') + '</span>' +
       (s.limite ? '<span id="chrono" class="chrono">⏱ ' + mmss(reste) + '</span>' : '') +
       (s.repondre === 'oral' && !s.limite ? '<span id="chrono-q" class="chrono">⏳ 2:00</span>' : '') + '</div>' +
       '<div class="progress"><div style="width:' + (100 * s.i / n) + '%"></div></div>';
@@ -3088,19 +3183,23 @@ window.FICHES = {
       if (oral) html += '<p class="aide">Cliquez sur la réponse qu\'elle donne, ou affichez la réponse.</p>';
     } else if (q.type === 'libre') {
       html += '<div class="saisie"><input id="rep" autocomplete="off" autocapitalize="off" placeholder="' + (oral ? 'Sa réponse (facultatif)' : 'Ta réponse') + '">' +
-        '<span class="touches">' + ['−', '²', '×', '/'].map(function (t) { return '<button type="button" class="btn sec touche" data-t="' + t + '">' + t + '</button>'; }).join('') + '</span>' +
+        '<span class="touches">' + ['x', '²', '³', '√', '×', '/', '(', ')', '−', '⌫'].map(function (t) { return '<button type="button" class="btn sec touche" data-t="' + t + '">' + t + '</button>'; }).join('') + '</span>' +
         '<button class="btn" id="valider">' + (oral ? 'Vérifier sa réponse' : 'Valider') + '</button></div>' +
         '<p class="aide">Aucune proposition : écris ta réponse (un nombre, une expression comme 3x² − 2x, ou un mot comme « losange »).</p>';
     } else {
-      html += '<div class="saisie"><input id="rep" autocomplete="off" inputmode="decimal" placeholder="' + (oral ? 'Sa réponse (facultatif)' : 'Ta réponse') + '">' +
+      // sur téléphone : pavé numérique intégré (avec moins, virgule et fraction), sans le clavier du téléphone
+      html += '<div class="saisie"><input id="rep" autocomplete="off" inputmode="' + (tactile() ? 'none' : 'decimal') + '" placeholder="' + (oral ? 'Sa réponse (facultatif)' : 'Ta réponse') + '">' +
         (q.unite ? '<span class="note">' + esc(q.unite) + '</span>' : '') +
-        '<span class="touches">' + ['−', ',', '/'].map(function (t) { return '<button type="button" class="btn sec touche" data-t="' + t + '">' + t + '</button>'; }).join('') + '</span>' +
         '<button class="btn" id="valider">' + (oral ? 'Vérifier sa réponse' : 'Valider') + '</button></div>' +
-        '<p class="aide">' + (q.aide === 'fraction' ? 'Pour une fraction, écrire par exemple 3/4. ' : '') + 'Virgule ou point acceptés, signe moins avec la touche « - ».</p>';
+        (tactile() ? '<div class="pave">' + ['7', '8', '9', '⌫', '4', '5', '6', '/', '1', '2', '3', '−', '0', ',', '(', ')'].map(function (t) {
+          return '<button type="button" class="btn sec touche' + (t === '⌫' ? ' eff' : '') + '" data-t="' + t + '">' + t + '</button>'; }).join('') +
+          '</div><p class="aide"><a href="#" id="clavier-tel">⌨️ Utiliser plutôt le clavier du téléphone</a></p>' : '') +
+        '<p class="aide">' + (q.aide === 'fraction' ? 'Pour une fraction, écrire par exemple 3/4. ' : '') + (tactile() ? '' : 'Virgule ou point acceptés, signe moins avec la touche « - ».') + '</p>';
     }
     html += '<div class="ligne-btn">' + (oral ? '<button class="btn sec" id="voir">👁 Afficher la réponse</button>' : '') +
       ('speechSynthesis' in window ? '<button class="btn sec" id="lire">🔊 Lire la question</button>' : '') +
       '<button class="btn sec" id="brouillon-bt">✏️ Brouillon</button>' +
+      (!enBrevet(s) && !oral && window.FICHES && window.FICHES[q.gen] ? '<button class="btn sec" id="pouce">💡 Coup de pouce</button>' : '') +
       (enBrevet(s) && !oral ? '<button class="btn sec" id="passer">Passer (je ne sais pas)</button>' : '') + '</div><div id="retour"></div></div>';
     $vue.innerHTML = html;
 
@@ -3109,9 +3208,9 @@ window.FICHES = {
       inp.focus();
       inp.onkeydown = function (e) { if (e.key === 'Enter') document.getElementById('valider').click(); };
       document.getElementById('valider').onclick = function () { if (inp.value.trim() !== '') repondre(inp.value.trim()); };
-      $vue.querySelectorAll('[data-t]').forEach(function (bt) {
-        bt.onclick = function () { var t = bt.getAttribute('data-t'); inp.value = t === '−' && q.type !== 'libre' ? (inp.value.charAt(0) === '-' ? inp.value.slice(1) : '-' + inp.value) : inp.value + t; inp.focus(); };
-      });
+      $vue.querySelectorAll('[data-t]').forEach(function (bt) { bt.onclick = function () { taper(inp, bt.getAttribute('data-t')); }; });
+      var ct = document.getElementById('clavier-tel');
+      if (ct) ct.onclick = function (e) { e.preventDefault(); inp.setAttribute('inputmode', 'decimal'); inp.blur(); inp.focus(); ct.parentNode.remove(); };
     }
     $vue.querySelectorAll('[data-c]').forEach(function (b) {
       b.onclick = function () { if (!b.disabled) repondre(+b.getAttribute('data-c')); };
@@ -3125,6 +3224,25 @@ window.FICHES = {
     if (voir) voir.onclick = reveleOral;
     var passer = document.getElementById('passer');
     if (passer) passer.onclick = function () { repondre(null); };
+    s.aideQ = false;
+    var pouce = document.getElementById('pouce');
+    if (pouce) pouce.onclick = function () {
+      s.aideQ = true;
+      var z = document.createElement('div');
+      z.className = 'retour neutre';
+      z.innerHTML = '<div class="titre">💡 Coup de pouce</div><p>' + window.FICHES[q.gen].regle + '</p><p class="note">La question compte dans la séance, mais la notion ne sera validée qu\'en la réussissant sans aide.</p>';
+      pouce.closest('.ligne-btn').after(z); pouce.remove();
+    };
+  }
+
+  function tactile() { return !!(window.matchMedia && matchMedia('(pointer: coarse)').matches); }
+  // touche du clavier maths : insère à l'endroit du curseur (⌫ efface le caractère précédent)
+  function taper(inp, t) {
+    var v = inp.value, a = inp.selectionStart == null ? v.length : inp.selectionStart, b = inp.selectionEnd == null ? v.length : inp.selectionEnd;
+    if (t === '⌫') { if (a === b && a > 0) a--; inp.value = v.slice(0, a) + v.slice(b); }
+    else { t = t === '−' ? '-' : t; inp.value = v.slice(0, a) + t + v.slice(b); a += t.length; }
+    try { inp.setSelectionRange(a, a); } catch (e) {}
+    inp.focus();
   }
 
   // Brouillon : une zone pour poser un calcul au doigt ou à la souris, comme la feuille de brouillon du jour J
@@ -3167,6 +3285,8 @@ window.FICHES = {
     var diag = (!ok && rep !== null && rep !== undefined) ? E.diagnostiquer(q, rep) : '';
     s.rep[s.i] = { g: q.gen, t: q.theme, ok: ok, r: rep === null || rep === undefined ? '' : (q.type === 'qcm' ? LETTRES[rep] + '. ' + q.choix[rep] : esc(String(rep))),
                    q: q.texte, br: q.reponse, d: diag, ms: Date.now() - s.tq, p: q.pts, n: q.notion };
+    if (s.aideQ) s.rep[s.i].ai = 1;
+    if (q.reessai) s.rep[s.i].re = 1;
     if (enBrevet(s) && s.repondre === 'ecran') return suivante();
     // réponse écrite non reconnue : l'élève (ou le parent) juge si c'est la même chose écrite autrement
     if (!ok && q.type === 'libre' && okManuel === undefined && rep !== null) return autoEvaluation(q, rep, diag);
@@ -3199,20 +3319,23 @@ window.FICHES = {
       var bs = document.getElementById('suivante'); bs.focus(); bs.onclick = suivante;
       return;
     }
-    var html = '<div class="retour ' + (ok ? 'ok' : 'ko') + '"><div class="titre">' + (ok ? '✓ Bonne réponse !' : '✗ Ce n\'est pas ça') + '</div>';
+    var aide = s.rep[s.i] && s.rep[s.i].ai;
+    var html = '<div class="retour ' + (ok ? 'ok' : 'ko') + '"><div class="titre">' + (ok ? (aide ? '✓ Bonne réponse, avec le coup de pouce' : q.reessai ? '✓ Bonne réponse, bravo d\'avoir corrigé !' : '✓ Bonne réponse !') : '✗ Ce n\'est pas ça') + '</div>' +
+      (ok && aide ? '<p class="note">La notion sera validée quand tu la réussiras sans aide.</p>' : '');
     if (ok && q.type === 'num' && E.nonSimplifiee(rep)) html += '<p>Juste, mais pense à simplifier : <b>' + q.reponse + '</b>.</p>';
     if (!ok) {
       if (rep !== null && rep !== undefined) html += '<p>Réponse donnée : ' + texteReponse(q, rep) + '<br>Bonne réponse : <b>' + q.reponse + '</b></p>';
       else html += '<p>Bonne réponse : <b>' + q.reponse + '</b></p>';
       if (diag) html += '<p>🔎 <b>Ce qui s\'est sans doute passé :</b> ' + diag + '</p>';
     }
-    html += '<p>📝 <b>Correction :</b> ' + q.correction + '</p>' + ficheHTML(q.gen) + '</div><div class="ligne-btn">';
-    if (!ok) html += '<button class="btn sec" id="similaire">🔁 Une question du même type</button>';
-    html += '<button class="btn" id="suivante">' + (s.i + 1 < s.qs.length ? 'Question suivante →' : 'Voir le bilan') + '</button></div>';
+    // après une erreur, la question suivante reprend la même notion avec d'autres nombres (une seule fois, 4 au plus par séance)
+    var reessai = !ok && !q.reessai && NOTION[q.gen] && s.qs.filter(function (x) { return x.reessai; }).length < 4;
+    if (reessai) { var q2 = fabriquer(NOTION[q.gen], s.format, 1); q2.reessai = true; s.qs.splice(s.i + 1, 0, q2); }
+    html += '<p>📝 <b>Correction :</b> ' + q.correction + '</p>' + ficheHTML(q.gen) + '</div>' +
+      (reessai ? '<p class="note">🔁 La question suivante porte sur la même notion, avec d\'autres nombres : c\'est le moment d\'appliquer la correction.</p>' : '') + '<div class="ligne-btn">';
+    html += '<button class="btn" id="suivante">' + (reessai ? 'Nouvelle chance →' : s.i + 1 < s.qs.length ? 'Question suivante →' : 'Voir le bilan') + '</button></div>';
     document.getElementById('retour').innerHTML = html;
     var b = document.getElementById('suivante'); b.focus(); b.onclick = suivante;
-    var sim = document.getElementById('similaire');
-    if (sim) sim.onclick = function () { s.qs.splice(s.i + 1, 0, fabriquer(NOTION[q.gen], s.format, 1)); suivante(); };
   }
 
   // Mode oral : le parent affiche la réponse puis note juste / faux
@@ -3252,17 +3375,25 @@ window.FICHES = {
     var note = s.mode === 'epreuve' && totalPts ? Math.round(s.rep.reduce(function (t, r) { return t + (r.ok ? r.p : 0); }, 0) / totalPts * 60) / 10 : undefined;
     var enreg = { id: s.id, debut: s.debut, fin: new Date().toISOString(), duree: Math.round((Date.now() - s.t0) / 1000), poste: poste() || (S.appareil ? S.appareil() : 'Mac'),
                   mode: s.mode, repondre: s.repondre, format: s.format, theme: s.theme, sujet: s.sujet || undefined, score: score, note: note, total: s.rep.length, rep: s.rep };
-    if (!modeEssai()) S.ajouterSeance(enreg);
-    bilan(enreg, s.qs);
+    var avant = etatNotions(), gains = [];
+    if (!modeEssai()) {
+      S.ajouterSeance(enreg);
+      var apres = etatNotions(), m = function (e) { return e.statut === 'maitrise' || e.statut === 'reviser'; };
+      Object.keys(apres).forEach(function (k) { if (m(apres[k]) && !m(avant[k])) gains.push(apres[k].nom); });
+    }
+    bilan(enreg, s.qs, gains);
   }
 
-  function bilan(enr, qs) {
+  function bilan(enr, qs, gains) {
     var sur6 = sur6De(enr);
     var html = '<div class="carte"><h1>' + (enr.score / enr.total >= 0.8 ? '🎉 Excellent !' : enr.score / enr.total >= 0.5 ? '👍 Bien joué' : '💪 On continue !') + '</h1>' +
       '<div class="kpis"><div class="kpi"><div class="v">' + enr.score + ' / ' + enr.total + '</div><div class="t">bonnes réponses</div></div>' +
       (enr.mode === 'epreuve' ? '<div class="kpi"><div class="v">' + E.f(sur6) + ' / 6</div><div class="t">note estimée (barème : 6 points)</div></div>' : '') +
       '<div class="kpi"><div class="v">' + mmss(enr.duree) + '</div><div class="t">durée</div></div></div>' +
       (modeEssai() ? '<p class="retour neutre">🧪 Mode essai : cette séance n\'a pas été enregistrée dans la progression.</p>' : '');
+    if (gains && gains.length) html += '<div class="retour ok"><div class="titre">🌟 Notion' + (gains.length > 1 ? 's' : '') + ' validée' + (gains.length > 1 ? 's' : '') + ' pendant cette séance</div>' + gains.map(esc).join(', ') + '</div>';
+    var corrigees = enr.rep.filter(function (r) { return r.re && r.ok; }).length;
+    if (corrigees) html += '<p>🔁 ' + corrigees + ' erreur' + (corrigees > 1 ? 's' : '') + ' corrigée' + (corrigees > 1 ? 's' : '') + ' tout de suite grâce à la nouvelle chance.</p>';
     var fausses = enr.rep.filter(function (r) { return !r.ok; });
     if (fausses.length) html += '<p>Les notions ratées sont mémorisées : elles reviendront dans « Entraînement du jour » et « Revoir mes difficultés » jusqu\'à ce qu\'elles soient maîtrisées.</p>';
     html += '<h2>Correction détaillée</h2>';
@@ -3319,6 +3450,7 @@ window.FICHES = {
     // Évolution de la note estimée, semaine après semaine
     html += '<div class="carte"><h2>Note estimée au brevet (partie automatismes)</h2><p class="note">Estimation sur 6 d\'après la réussite récente sur chaque notion, pondérée par sa fréquence dans les sujets 2026. Une notion jamais travaillée compte pour 40 %.</p><div class="graph" id="graph-note"></div></div>';
     // Badges
+    html += planHTML();
     html += '<div class="carte"><h2>Badges</h2><div class="badges">' + badges().map(function (b) {
       return '<div class="badge' + (b[2] ? ' obtenu' : '') + '" title="' + esc(b[1]) + '"><span class="b-ico">' + b[0] + '</span><span>' + esc(b[1]) + '</span></div>'; }).join('') + '</div></div>';
 
@@ -3388,7 +3520,7 @@ window.FICHES = {
 
     // Historique
     html += '<div class="carte"><h2>Historique des séances</h2><div class="hist-wrap"><table class="hist"><tr><th>Date</th><th>Séance</th><th>Réponses</th><th>Score</th>' + (profil === 'parent' ? '<th>Appareil</th><th></th>' : '') + '</tr>';
-    var NOMS = { jour: 'Entraînement du jour', epreuve: 'Épreuve blanche', difficultes: 'Difficultés', theme: 'Thème' };
+    var NOMS = { jour: 'Entraînement du jour', flash: '⚡ 5 minutes', epreuve: 'Épreuve blanche', difficultes: 'Difficultés', theme: 'Thème' };
     ss.slice().reverse().slice(0, profil === 'parent' ? 200 : 40).forEach(function (s) {
       if (profil === 'parent') { html += ligneSeance(s); return; }
       html += '<tr><td>' + dateCourte(s.debut) + '</td><td>' + NOMS[s.mode] + (s.sujet ? ' · ' + esc(s.sujet) : '') + (s.theme ? ' · ' + THEME[s.theme].nom : '') + (s.mode !== 'epreuve' && s.format ? ' · ' + (s.format === 'brevet' ? '🎓 brevet' : '🖊️ seule') : '') + '</td><td>' + (s.repondre === 'oral' ? '🗣️ oral' : '💻 écran') +
